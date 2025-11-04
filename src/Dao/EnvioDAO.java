@@ -7,31 +7,42 @@ import Config.DatabaseConnection;
 import Models.Envio;
 
 /**
- * Data Access Object para la entidad Domicilio.
+ * Data Access Object para la entidad Envio.
  * Gestiona todas las operaciones de persistencia de domicilios en la base de datos.
  *
  * Características:
- * - Implementa GenericDAO<Domicilio> para operaciones CRUD estándar
+ * - Implementa GenericDAO<Envio> para operaciones CRUD estándar
  * - Usa PreparedStatements en TODAS las consultas (protección contra SQL injection)
  * - Implementa soft delete (eliminado=TRUE, no DELETE físico)
- * - NO maneja relaciones (Domicilio es entidad independiente)
+ * - NO maneja relaciones (Envio es entidad independiente)
  * - Soporta transacciones mediante insertTx() (recibe Connection externa)
  *
- * Diferencias con PersonaDAO:
+ * Diferencias con EnvioDAO:
  * - Más simple: NO tiene LEFT JOINs (Domicilio no tiene relaciones cargadas)
  * - NO tiene búsquedas especializadas (solo CRUD básico)
  * - Todas las queries filtran por eliminado=FALSE (soft delete)
  *
  * Patrón: DAO con try-with-resources para manejo automático de recursos JDBC
  */
-public class DomicilioDAO implements GenericDAO<Envio> {
+public class EnvioDAO implements GenericDAO<Envio> {
     /**
      * Query de inserción de domicilio.
      * Inserta calle y número.
      * El id es AUTO_INCREMENT y se obtiene con RETURN_GENERATED_KEYS.
      * El campo eliminado tiene DEFAULT FALSE en la BD.
      */
-    private static final String INSERT_SQL = "INSERT INTO domicilios (calle, numero) VALUES (?, ?)";
+    private static final String INSERT_SQL = """
+        INSERT INTO envio
+            (
+             tracking,
+             costo,
+             fechaDespacho,
+             fechaEstimada,
+             tipo,
+             empresa,
+             estado)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """;
 
     /**
      * Query de actualización de domicilio.
@@ -41,7 +52,19 @@ public class DomicilioDAO implements GenericDAO<Envio> {
      * ⚠️ IMPORTANTE: Si varias personas comparten este domicilio,
      * la actualización los afectará a TODAS (RN-040).
      */
-    private static final String UPDATE_SQL = "UPDATE domicilios SET calle = ?, numero = ? WHERE id = ?";
+    private static final String UPDATE_SQL = """
+        UPDATE
+            envio
+        SET
+            tracking = ?,
+            costo = ?,
+            fechaDespacho = ?,
+            fechaEstimada = ?,
+            tipo = ?,
+            empresa = ?
+            estado = ?
+        WHERE id = ?
+    """;
 
     /**
      * Query de soft delete.
@@ -52,21 +75,38 @@ public class DomicilioDAO implements GenericDAO<Envio> {
      * Puede dejar FKs huérfanas (personas.domicilio_id apuntando a domicilio eliminado).
      * ALTERNATIVA SEGURA: PersonaServiceImpl.eliminarDomicilioDePersona()
      */
-    private static final String DELETE_SQL = "UPDATE domicilios SET eliminado = TRUE WHERE id = ?";
+    private static final String DELETE_SQL = """
+        UPDATE
+            envio
+        SET eliminado = TRUE
+        WHERE id = ?
+    """;
 
     /**
      * Query para obtener domicilio por ID.
      * Solo retorna domicilios activos (eliminado=FALSE).
      * SELECT * es aceptable aquí porque Domicilio tiene solo 4 columnas.
      */
-    private static final String SELECT_BY_ID_SQL = "SELECT * FROM domicilios WHERE id = ? AND eliminado = FALSE";
+    private static final String SELECT_BY_ID_SQL = """
+        SELECT
+            *
+        FROM
+            envio 
+        WHERE id = ? AND eliminado = FALSE
+        """;
 
     /**
      * Query para obtener todos los domicilios activos.
      * Filtra por eliminado=FALSE (solo domicilios activos).
      * SELECT * es aceptable aquí porque Domicilio tiene solo 4 columnas.
      */
-    private static final String SELECT_ALL_SQL = "SELECT * FROM domicilios WHERE eliminado = FALSE";
+    private static final String SELECT_ALL_SQL = """
+        SELECT
+            *
+        FROM
+            envio
+        WHERE eliminado = FALSE
+        """;
 
     /**
      * Inserta un domicilio en la base de datos (versión sin transacción).
@@ -91,8 +131,7 @@ public class DomicilioDAO implements GenericDAO<Envio> {
     public void insertar(Envio envio) throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
-
-            setDomicilioParameters(stmt, envio);
+            setearParametrosEnvio(stmt, envio);
             stmt.executeUpdate();
 
             setGeneratedId(stmt, envio);
@@ -115,7 +154,7 @@ public class DomicilioDAO implements GenericDAO<Envio> {
     @Override
     public void insertTx(Envio envio, Connection conn) throws Exception {
         try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
-            setDomicilioParameters(stmt, envio);
+            setearParametrosEnvio(stmt, envio);
             stmt.executeUpdate();
             setGeneratedId(stmt, envio);
         }
@@ -144,10 +183,8 @@ public class DomicilioDAO implements GenericDAO<Envio> {
     public void actualizar(Envio envio) throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(UPDATE_SQL)) {
-
-            stmt.setString(1, envio.getEmpresa().toString());
-            stmt.setString(2, envio.getTracking());
-            stmt.setInt(3, envio.getId());
+            setearParametrosEnvio(stmt, envio);
+            stmt.setInt(8, envio.getId());
 
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
@@ -260,9 +297,14 @@ public class DomicilioDAO implements GenericDAO<Envio> {
      * @param envio Domicilio con los datos a insertar
      * @throws SQLException Si hay error al setear parámetros
      */
-    private void setDomicilioParameters(PreparedStatement stmt, Envio envio) throws SQLException {
-        stmt.setString(1, envio.getEmpresa().toString());
-        stmt.setString(2, envio.getTracking());
+    private void setearParametrosEnvio(PreparedStatement stmt, Envio envio) throws SQLException {
+        stmt.setString(1, envio.getTracking());
+        stmt.setDouble(2, envio.getCosto());
+        stmt.setDate(3, new java.sql.Date(envio.getFechaDespacho().getTime()));
+        stmt.setDate(4, new java.sql.Date(envio.getFechaEstimada().getTime()));
+        stmt.setString(5, envio.getTipo().toString());
+        stmt.setString(6, envio.getEmpresa().toString());
+        stmt.setString(7, envio.getEstado().toString());
     }
 
     /**

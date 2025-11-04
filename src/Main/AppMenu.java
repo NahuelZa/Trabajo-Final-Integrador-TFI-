@@ -1,8 +1,8 @@
 package Main;
 
 import java.util.Scanner;
-import Dao.DomicilioDAO;
-import Dao.PersonaDAO;
+import Dao.EnvioDAO;
+import Dao.PedidoDAO;
 import Service.DomicilioServiceImpl;
 import Service.PersonaServiceImpl;
 
@@ -192,9 +192,9 @@ public class AppMenu {
      * @return PersonaServiceImpl completamente inicializado con todas sus dependencias
      */
     private PersonaServiceImpl createPersonaService() {
-        DomicilioDAO domicilioDAO = new DomicilioDAO();
-        PersonaDAO personaDAO = new PersonaDAO(domicilioDAO);
-        DomicilioServiceImpl domicilioService = new DomicilioServiceImpl(domicilioDAO);
-        return new PersonaServiceImpl(personaDAO, domicilioService);
+        EnvioDAO envioDAO = new EnvioDAO();
+        PedidoDAO pedidoDAO = new PedidoDAO(envioDAO);
+        DomicilioServiceImpl domicilioService = new DomicilioServiceImpl(envioDAO);
+        return new PersonaServiceImpl(pedidoDAO, domicilioService);
     }
 }

@@ -138,6 +138,46 @@ public class Envio extends Base {
         this.tracking = tracking;
     }
 
+    public Double getCosto() {
+        return costo;
+    }
+
+    public void setCosto(Double costo) {
+        this.costo = costo;
+    }
+
+    public Date getFechaDespacho() {
+        return fechaDespacho;
+    }
+
+    public void setFechaDespacho(Date fechaDespacho) {
+        this.fechaDespacho = fechaDespacho;
+    }
+
+    public Date getFechaEstimada() {
+        return fechaEstimada;
+    }
+
+    public void setFechaEstimada(Date fechaEstimada) {
+        this.fechaEstimada = fechaEstimada;
+    }
+
+    public Estado getEstado() {
+        return estado;
+    }
+
+    public void setEstado(Estado estado) {
+        this.estado = estado;
+    }
+
+    public Tipo getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(Tipo tipo) {
+        this.tipo = tipo;
+    }
+
     /**
      * Representación en texto del envío.
      * Útil para debugging y logging.

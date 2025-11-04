@@ -1,5 +1,6 @@
 package Models;
 
+import java.time.LocalDate;
 import java.util.Date;
 import java.util.Objects;
 
@@ -21,6 +22,11 @@ import java.util.Objects;
  * - eliminado: BOOLEAN DEFAULT FALSE (heredado de Base)
  */
 public class Pedido extends Base {
+
+    public Estado getEstado() {
+        return estado;
+    }
+
     public enum Estado { NUEVO, FACTURADO, ENVIADO }
     /** Numero de Pediido. Requerido, no puede ser null ni vacío. */
     private String numero;
@@ -116,6 +122,10 @@ public class Pedido extends Base {
      */
     public void setEnvio(Envio envio) {
         this.envio = envio;
+    }
+
+    public Date getFecha() {
+        return this.fecha;
     }
 
     @Override
