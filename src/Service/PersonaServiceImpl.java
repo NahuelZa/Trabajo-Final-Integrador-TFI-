@@ -3,7 +3,7 @@ package Service;
 import Models.Pedido;
 
 import java.util.List;
-import Dao.PersonaDAO;
+import Dao.PedidoDAO;
 
 /**
  * Implementación del servicio de negocio para la entidad Persona.
@@ -23,7 +23,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
      * DAO para acceso a datos de personas.
      * Inyectado en el constructor (Dependency Injection).
      */
-    private final PersonaDAO personaDAO;
+    private final PedidoDAO pedidoDAO;
 
     /**
      * Servicio de domicilios para coordinar operaciones transaccionales.
@@ -38,18 +38,18 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
      * Constructor con inyección de dependencias.
      * Valida que ambas dependencias no sean null (fail-fast).
      *
-     * @param personaDAO DAO de personas (normalmente PersonaDAO)
+     * @param pedidoDAO DAO de personas (normalmente PersonaDAO)
      * @param domicilioServiceImpl Servicio de domicilios para operaciones coordinadas
      * @throws IllegalArgumentException si alguna dependencia es null
      */
-    public PersonaServiceImpl(PersonaDAO personaDAO, DomicilioServiceImpl domicilioServiceImpl) {
-        if (personaDAO == null) {
+    public PersonaServiceImpl(PedidoDAO pedidoDAO, DomicilioServiceImpl domicilioServiceImpl) {
+        if (pedidoDAO == null) {
             throw new IllegalArgumentException("PersonaDAO no puede ser null");
         }
         if (domicilioServiceImpl == null) {
             throw new IllegalArgumentException("DomicilioServiceImpl no puede ser null");
         }
-        this.personaDAO = personaDAO;
+        this.pedidoDAO = pedidoDAO;
         this.domicilioServiceImpl = domicilioServiceImpl;
     }
 
@@ -86,7 +86,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
             }
         }
 
-        personaDAO.insertar(pedido);
+        pedidoDAO.insertar(pedido);
     }
 
     /**
@@ -112,7 +112,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
             throw new IllegalArgumentException("El ID de la persona debe ser mayor a 0 para actualizar");
         }
         validateDniUnique(pedido.getTotal(), pedido.getId());
-        personaDAO.actualizar(pedido);
+        pedidoDAO.actualizar(pedido);
     }
 
     /**
@@ -131,7 +131,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
         }
-        personaDAO.eliminar(id);
+        pedidoDAO.eliminar(id);
     }
 
     /**
@@ -147,7 +147,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
         }
-        return personaDAO.getById(id);
+        return pedidoDAO.getById(id);
     }
 
     /**
@@ -159,7 +159,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
      */
     @Override
     public List<Pedido> getAll() throws Exception {
-        return personaDAO.getAll();
+        return pedidoDAO.getAll();
     }
 
     /**
@@ -190,7 +190,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
         if (filtro == null || filtro.trim().isEmpty()) {
             throw new IllegalArgumentException("El filtro de búsqueda no puede estar vacío");
         }
-        return personaDAO.buscarPorNombreApellido(filtro);
+        return pedidoDAO.buscarPorNombreApellido(filtro);
     }
 
     /**
@@ -210,7 +210,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
         if (dni == null || dni.trim().isEmpty()) {
             throw new IllegalArgumentException("El DNI no puede estar vacío");
         }
-        return personaDAO.buscarPorDni(dni);
+        return pedidoDAO.buscarPorDni(dni);
     }
 
     /**
@@ -240,7 +240,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
             throw new IllegalArgumentException("Los IDs deben ser mayores a 0");
         }
 
-        Pedido pedido = personaDAO.getById(personaId);
+        Pedido pedido = pedidoDAO.getById(personaId);
         if (pedido == null) {
             throw new IllegalArgumentException("Persona no encontrada con ID: " + personaId);
         }
@@ -251,7 +251,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
 
         // Secuencia transaccional: actualizar FK → eliminar domicilio
         pedido.setEnvio(null);
-        personaDAO.actualizar(pedido);
+        pedidoDAO.actualizar(pedido);
         domicilioServiceImpl.eliminar(domicilioId);
     }
 
@@ -303,7 +303,7 @@ public class PersonaServiceImpl implements GenericService<Pedido> {
      * @throws Exception Si hay error de BD al buscar
      */
     private void validateDniUnique(String dni, Integer personaId) throws Exception {
-        Pedido existente = personaDAO.buscarPorDni(dni);
+        Pedido existente = pedidoDAO.buscarPorDni(dni);
         if (existente != null) {
             // Existe una persona con ese DNI
             if (personaId == null || existente.getId() != personaId) {

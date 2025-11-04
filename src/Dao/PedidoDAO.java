@@ -3,6 +3,7 @@ package Dao;
 import Models.Pedido;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import Config.DatabaseConnection;
@@ -22,27 +23,54 @@ import Models.Envio;
  *
  * Patrón: DAO con try-with-resources para manejo automático de recursos JDBC
  */
-public class PersonaDAO implements GenericDAO<Pedido> {
+public class PedidoDAO implements GenericDAO<Pedido> {
     /**
      * Query de inserción de persona.
      * Inserta nombre, apellido, dni y FK domicilio_id.
      * El id es AUTO_INCREMENT y se obtiene con RETURN_GENERATED_KEYS.
      */
-    private static final String INSERT_SQL = "INSERT INTO personas (nombre, apellido, dni, domicilio_id) VALUES (?, ?, ?, ?)";
+    private static final String INSERT_SQL = """
+        INSERT INTO
+            pedido
+            (
+             numero,
+             fecha,
+             clienteNombre,
+             total,
+             estado)
+        VALUES
+            (?, ?, ?, ?, ?)
+        """;
 
     /**
      * Query de actualización de persona.
      * Actualiza nombre, apellido, dni y FK domicilio_id por id.
      * NO actualiza el flag eliminado (solo se modifica en soft delete).
      */
-    private static final String UPDATE_SQL = "UPDATE personas SET nombre = ?, apellido = ?, dni = ?, domicilio_id = ? WHERE id = ?";
+    private static final String UPDATE_SQL = """
+        UPDATE
+            pedido
+        SET
+            numero = ?,
+            fecha = ?,
+            clienteNombre = ?,
+            total = ?,
+            estado = ?
+        WHERE id = ?
+        """;
 
     /**
      * Query de soft delete.
      * Marca eliminado=TRUE sin borrar físicamente la fila.
      * Preserva integridad referencial y datos históricos.
      */
-    private static final String DELETE_SQL = "UPDATE personas SET eliminado = TRUE WHERE id = ?";
+    private static final String DELETE_SQL = """
+            UPDATE
+                pedido
+            SET
+                eliminado = TRUE
+            WHERE id = ?
+    """;
 
     /**
      * Query para obtener persona por ID.
@@ -53,20 +81,48 @@ public class PersonaDAO implements GenericDAO<Pedido> {
      * - Persona: id, nombre, apellido, dni, domicilio_id
      * - Domicilio (puede ser NULL): dom_id, calle, numero
      */
-    private static final String SELECT_BY_ID_SQL = "SELECT p.id, p.nombre, p.apellido, p.dni, p.domicilio_id, " +
-            "d.id AS dom_id, d.calle, d.numero " +
-            "FROM personas p LEFT JOIN domicilios d ON p.domicilio_id = d.id " +
-            "WHERE p.id = ? AND p.eliminado = FALSE";
+    private static final String SELECT_BY_ID_SQL = """
+        SELECT
+            p.id,
+            p.numero,
+            p.fecha,
+            p.clienteNombre,
+            p.total,
+            e.id AS envio_id,
+            e.tracking,
+            e.empresa,
+            e.tipo,
+            e.costo,
+            e.fechaEstimada,
+            e.fechaDespacho,
+            e.estado
+            FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND e.eliminado = TRUE
+            WHERE p.id = ? AND p.eliminado = FALSE;
+        """;
 
     /**
      * Query para obtener todas las personas activas.
      * LEFT JOIN con domicilios para cargar relaciones.
      * Filtra por eliminado=FALSE (solo personas activas).
      */
-    private static final String SELECT_ALL_SQL = "SELECT p.id, p.nombre, p.apellido, p.dni, p.domicilio_id, " +
-            "d.id AS dom_id, d.calle, d.numero " +
-            "FROM personas p LEFT JOIN domicilios d ON p.domicilio_id = d.id " +
-            "WHERE p.eliminado = FALSE";
+    private static final String SELECT_ALL_SQL =  """
+        SELECT
+            p.id,
+            p.numero,
+            p.fecha,
+            p.clienteNombre,
+            p.total,
+            e.id AS envio_id,
+            e.tracking,
+            e.empresa,
+            e.tipo,
+            e.costo,
+            e.fechaEstimada,
+            e.fechaDespacho,
+            e.estado
+            FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND p.eliminado = FALSE
+            WHERE p.eliminado = FALSE;
+        """;
 
     /**
      * Query de búsqueda por nombre o apellido con LIKE.
@@ -74,10 +130,24 @@ public class PersonaDAO implements GenericDAO<Pedido> {
      * Usa % antes y después del filtro: LIKE '%filtro%'
      * Solo personas activas (eliminado=FALSE).
      */
-    private static final String SEARCH_BY_NAME_SQL = "SELECT p.id, p.nombre, p.apellido, p.dni, p.domicilio_id, " +
-            "d.id AS dom_id, d.calle, d.numero " +
-            "FROM personas p LEFT JOIN domicilios d ON p.domicilio_id = d.id " +
-            "WHERE p.eliminado = FALSE AND (p.nombre LIKE ? OR p.apellido LIKE ?)";
+    private static final String SEARCH_BY_NUMBER_SQL = """
+        SELECT
+            p.id,
+            p.numero,
+            p.fecha,
+            p.clienteNombre,
+            p.total,
+            e.id AS envio_id,
+            e.tracking,
+            e.empresa,
+            e.tipo,
+            e.costo,
+            e.fechaEstimada,
+            e.fechaDespacho,
+            e.estado
+            FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND p.eliminado = FALSE
+            WHERE p.eliminado = FALSE AND (p.numero LIKE ?);
+        """;
 
     /**
      * Query de búsqueda exacta por DNI.
@@ -85,29 +155,43 @@ public class PersonaDAO implements GenericDAO<Pedido> {
      * Usado por PersonaServiceImpl.validateDniUnique() para verificar unicidad.
      * Solo personas activas (eliminado=FALSE).
      */
-    private static final String SEARCH_BY_DNI_SQL = "SELECT p.id, p.nombre, p.apellido, p.dni, p.domicilio_id, " +
-            "d.id AS dom_id, d.calle, d.numero " +
-            "FROM personas p LEFT JOIN domicilios d ON p.domicilio_id = d.id " +
-            "WHERE p.eliminado = FALSE AND p.dni = ?";
+    private static final String SEARCH_BY_NOMBRE_CLIENTE = """
+        SELECT
+            p.id,
+            p.numero,
+            p.fecha,
+            p.clienteNombre,
+            p.total,
+            e.id AS envio_id,
+            e.tracking,
+            e.empresa,
+            e.tipo,
+            e.costo,
+            e.fechaEstimada,
+            e.fechaDespacho,
+            e.estado
+            FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND p.eliminado = FALSE
+            WHERE p.eliminado = FALSE AND (p.clienteNombre LIKE ?);
+        """;
 
     /**
      * DAO de domicilios (actualmente no usado, pero disponible para operaciones futuras).
      * Inyectado en el constructor por si se necesita coordinar operaciones.
      */
-    private final DomicilioDAO domicilioDAO;
+    private final EnvioDAO envioDAO;
 
     /**
      * Constructor con inyección de DomicilioDAO.
      * Valida que la dependencia no sea null (fail-fast).
      *
-     * @param domicilioDAO DAO de domicilios
+     * @param envioDAO DAO de domicilios
      * @throws IllegalArgumentException si domicilioDAO es null
      */
-    public PersonaDAO(DomicilioDAO domicilioDAO) {
-        if (domicilioDAO == null) {
+    public PedidoDAO(EnvioDAO envioDAO) {
+        if (envioDAO == null) {
             throw new IllegalArgumentException("DomicilioDAO no puede ser null");
         }
-        this.domicilioDAO = domicilioDAO;
+        this.envioDAO = envioDAO;
     }
 
     /**
@@ -130,7 +214,7 @@ public class PersonaDAO implements GenericDAO<Pedido> {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
 
-            setPersonaParameters(stmt, pedido);
+            setearParametrosPedido(stmt, pedido);
             stmt.executeUpdate();
             setGeneratedId(stmt, pedido);
         }
@@ -152,7 +236,7 @@ public class PersonaDAO implements GenericDAO<Pedido> {
     @Override
     public void insertTx(Pedido pedido, Connection conn) throws Exception {
         try (PreparedStatement stmt = conn.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
-            setPersonaParameters(stmt, pedido);
+            setearParametrosPedido(stmt, pedido);
             stmt.executeUpdate();
             setGeneratedId(stmt, pedido);
         }
@@ -177,11 +261,8 @@ public class PersonaDAO implements GenericDAO<Pedido> {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(UPDATE_SQL)) {
 
-            stmt.setString(1, pedido.getNumero());
-            stmt.setString(2, pedido.getClienteNombre());
-            stmt.setString(3, pedido.getTotal());
-            setDomicilioId(stmt, 4, pedido.getEnvio());
-            stmt.setInt(5, pedido.getId());
+            setearParametrosPedido(stmt, pedido);
+            stmt.setInt(6, pedido.getId());
 
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
@@ -234,7 +315,7 @@ public class PersonaDAO implements GenericDAO<Pedido> {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return mapResultSetToPersona(rs);
+                    return mapResultSetToPedido(rs);
                 }
             }
         } catch (SQLException e) {
@@ -261,7 +342,7 @@ public class PersonaDAO implements GenericDAO<Pedido> {
              ResultSet rs = stmt.executeQuery(SELECT_ALL_SQL)) {
 
             while (rs.next()) {
-                pedidos.add(mapResultSetToPersona(rs));
+                pedidos.add(mapResultSetToPedido(rs));
             }
         } catch (SQLException e) {
             throw new Exception("Error al obtener todas las personas: " + e.getMessage(), e);
@@ -292,7 +373,7 @@ public class PersonaDAO implements GenericDAO<Pedido> {
         List<Pedido> pedidos = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NAME_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NUMBER_SQL)) {
 
             // Construye el patrón LIKE: %filtro%
             String searchPattern = "%" + filtro + "%";
@@ -301,7 +382,7 @@ public class PersonaDAO implements GenericDAO<Pedido> {
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
-                    pedidos.add(mapResultSetToPersona(rs));
+                    pedidos.add(mapResultSetToPedido(rs));
                 }
             }
         }
@@ -327,13 +408,13 @@ public class PersonaDAO implements GenericDAO<Pedido> {
         }
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_DNI_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NOMBRE_CLIENTE)) {
 
             stmt.setString(1, dni.trim());
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
-                    return mapResultSetToPersona(rs);
+                    return mapResultSetToPedido(rs);
                 }
             }
         }
@@ -354,11 +435,12 @@ public class PersonaDAO implements GenericDAO<Pedido> {
      * @param pedido Persona con los datos a insertar
      * @throws SQLException Si hay error al setear parámetros
      */
-    private void setPersonaParameters(PreparedStatement stmt, Pedido pedido) throws SQLException {
+    private void setearParametrosPedido(PreparedStatement stmt, Pedido pedido) throws SQLException {
         stmt.setString(1, pedido.getNumero());
-        stmt.setString(2, pedido.getClienteNombre());
-        stmt.setString(3, pedido.getTotal());
-        setDomicilioId(stmt, 4, pedido.getEnvio());
+        stmt.setDate(2, new java.sql.Date(pedido.getFecha().getTime()));
+        stmt.setString(3, pedido.getClienteNombre());
+        stmt.setDouble(4, pedido.getTotal());
+        stmt.setString(5, pedido.getEstado().toString());
     }
 
     /**
@@ -431,22 +513,24 @@ public class PersonaDAO implements GenericDAO<Pedido> {
      * @return Persona reconstruida con su domicilio (si tiene)
      * @throws SQLException Si hay error al leer columnas del ResultSet
      */
-    private Pedido mapResultSetToPersona(ResultSet rs) throws SQLException {
-        Pedido pedido = new Pedido();
-        pedido.setId(rs.getInt("id"));
-        pedido.setNumero(rs.getString("nombre"));
-        pedido.setClienteNombre(rs.getString("apellido"));
-        pedido.setTotal(rs.getString("dni"));
-
+    private Pedido mapResultSetToPedido(ResultSet rs) throws SQLException {
         // Manejo correcto de LEFT JOIN: verificar si domicilio_id es NULL
-        int domicilioId = rs.getInt("domicilio_id");
-        if (domicilioId > 0 && !rs.wasNull()) {
-            Envio envio = new Envio();
-            envio.setId(rs.getInt("dom_id"));
-            envio.setEmpresa(rs.getString("calle"));
-            envio.setTracking(rs.getString("numero"));
-            pedido.setEnvio(envio);
+        int envioId = rs.getInt("envio_id");
+        Envio envio = null;
+        if (envioId > 0 && !rs.wasNull()) {
+            envio = this.envioDAO.getById(envioId);
         }
+        Pedido pedido = new Pedido(
+                rs.getInt("id"),
+                rs.getBoolean("eliminado"),
+                rs.getString("numero"),
+                rs.getDate("fecha"),
+                rs.getString("cliente_nombre"),
+                rs.getDouble("total"),
+                Pedido.Estado.valueOf(rs.getString("estado")),
+                envio);
+
+
 
         return pedido;
     }
