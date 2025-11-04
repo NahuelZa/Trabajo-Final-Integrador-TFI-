@@ -22,6 +22,8 @@ import java.util.Objects;
  * - eliminado: BOOLEAN DEFAULT FALSE (heredado de Base)
  */
 public class Envio extends Base {
+    private Pedido pedido;
+
     public enum Empresa { ANDREANI, OCA, CORREO_ARG }
     public enum Tipo { ESTANDAR, EXPRES }
     public enum Estado { EN_PREPARACION, EN_TRANSITO, ENTREGADO }
@@ -73,18 +75,19 @@ public class Envio extends Base {
      * Constructor completo para reconstruir un Domicilio desde la base de datos.
      * Usado por PersonaDAO y DomicilioDAO al mapear ResultSet.
      *
-     * @param id ID del domicilio en la BD
-     * @param eliminado El registro se encuentra eliminado o no
-     * @param tracking Tracking Number del envío
-     * @param empresa Nombre de la empresa
-     * @param tipo Tipo de Envio
-     * @param costo Costo del envío
+     * @param id            ID del domicilio en la BD
+     * @param eliminado     El registro se encuentra eliminado o no
+     * @param tracking      Tracking Number del envío
+     * @param empresa       Nombre de la empresa
+     * @param tipo          Tipo de Envio
+     * @param costo         Costo del envío
      * @param fechaDespacho Fecha que se despachó el  envío
      * @param fechaEstimada Fecha en que se estima arribará el envío
-     * @param estado Estado actual del envío
+     * @param estado        Estado actual del envío
+     * @param pedido
      */
     public Envio(int id, boolean eliminado, String tracking, Empresa empresa, Tipo tipo, Double costo,
-                 Date fechaDespacho, Date fechaEstimada, Estado estado) {
+                 Date fechaDespacho, Date fechaEstimada, Estado estado, Pedido pedido) {
         super(id, eliminado);
         this.tracking = tracking;
         this.empresa = empresa;
@@ -93,6 +96,7 @@ public class Envio extends Base {
         this.fechaDespacho = fechaDespacho;
         this.fechaEstimada = fechaEstimada;
         this.estado = estado;
+        this.pedido = pedido;
     }
 
     /**
@@ -176,6 +180,13 @@ public class Envio extends Base {
 
     public void setTipo(Tipo tipo) {
         this.tipo = tipo;
+    }
+
+    public int getPedidoId() {
+        if (pedido != null) {
+            return pedido.getId();
+        }
+        return 0;
     }
 
     /**
