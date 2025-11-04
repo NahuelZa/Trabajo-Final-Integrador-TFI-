@@ -3,7 +3,6 @@ package Dao;
 import Models.Pedido;
 
 import java.sql.*;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import Config.DatabaseConnection;
@@ -83,10 +82,12 @@ public class PedidoDAO implements GenericDAO<Pedido> {
      */
     private static final String SELECT_BY_ID_SQL = """
         SELECT
+            p.eliminado,
             p.id,
             p.numero,
             p.fecha,
             p.clienteNombre,
+            p.estado,
             p.total,
             e.id AS envio_id,
             e.tracking,
@@ -95,7 +96,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             e.costo,
             e.fechaEstimada,
             e.fechaDespacho,
-            e.estado
+            e.estado as estado_envio
             FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND e.eliminado = TRUE
             WHERE p.id = ? AND p.eliminado = FALSE;
         """;
@@ -108,9 +109,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
     private static final String SELECT_ALL_SQL =  """
         SELECT
             p.id,
+            p.eliminado,
             p.numero,
             p.fecha,
             p.clienteNombre,
+            p.estado,
             p.total,
             e.id AS envio_id,
             e.tracking,
@@ -119,7 +122,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             e.costo,
             e.fechaEstimada,
             e.fechaDespacho,
-            e.estado
+            e.estado as estado_envio
             FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND p.eliminado = FALSE
             WHERE p.eliminado = FALSE;
         """;
@@ -133,9 +136,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
     private static final String SEARCH_BY_NUMBER_SQL = """
         SELECT
             p.id,
+            p.eliminado,
             p.numero,
             p.fecha,
             p.clienteNombre,
+            p.estado,
             p.total,
             e.id AS envio_id,
             e.tracking,
@@ -144,7 +149,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             e.costo,
             e.fechaEstimada,
             e.fechaDespacho,
-            e.estado
+            e.estado as estado_envio
             FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND p.eliminado = FALSE
             WHERE p.eliminado = FALSE AND (p.numero LIKE ?);
         """;
@@ -158,9 +163,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
     private static final String SEARCH_BY_NOMBRE_CLIENTE = """
         SELECT
             p.id,
+            p.eliminado,
             p.numero,
             p.fecha,
             p.clienteNombre,
+            p.estado,
             p.total,
             e.id AS envio_id,
             e.tracking,
@@ -169,7 +176,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             e.costo,
             e.fechaEstimada,
             e.fechaDespacho,
-            e.estado
+            e.estado as estado_envio
             FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND p.eliminado = FALSE
             WHERE p.eliminado = FALSE AND (p.clienteNombre LIKE ?);
         """;
@@ -365,7 +372,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
      * @throws IllegalArgumentException Si el filtro está vacío
      * @throws SQLException Si hay error de BD
      */
-    public List<Pedido> buscarPorNombreApellido(String filtro) throws SQLException {
+    public List<Pedido> buscarPorNombreCliente(String filtro) throws SQLException {
         if (filtro == null || filtro.trim().isEmpty()) {
             throw new IllegalArgumentException("El filtro de búsqueda no puede estar vacío");
         }
@@ -373,12 +380,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         List<Pedido> pedidos = new ArrayList<>();
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NUMBER_SQL)) {
+             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NOMBRE_CLIENTE)) {
 
             // Construye el patrón LIKE: %filtro%
             String searchPattern = "%" + filtro + "%";
             stmt.setString(1, searchPattern);
-            stmt.setString(2, searchPattern);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
@@ -397,20 +403,20 @@ public class PedidoDAO implements GenericDAO<Pedido> {
      * - PersonaServiceImpl.validateDniUnique() para verificar que el DNI no esté duplicado
      * - MenuHandler opción 4 para buscar persona específica por DNI
      *
-     * @param dni DNI exacto a buscar (se aplica trim automáticamente)
+     * @param numeroPedido DNI exacto a buscar (se aplica trim automáticamente)
      * @return Persona con ese DNI, o null si no existe o está eliminada
      * @throws IllegalArgumentException Si el DNI está vacío
      * @throws SQLException Si hay error de BD
      */
-    public Pedido buscarPorDni(String dni) throws SQLException {
-        if (dni == null || dni.trim().isEmpty()) {
-            throw new IllegalArgumentException("El DNI no puede estar vacío");
+    public Pedido buscarPorNumeroDePedido(String numeroPedido) throws SQLException {
+        if (numeroPedido == null || numeroPedido.trim().isEmpty()) {
+            throw new IllegalArgumentException("El Número de envío no puede estar vacío");
         }
 
         try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NOMBRE_CLIENTE)) {
+             PreparedStatement stmt = conn.prepareStatement(SEARCH_BY_NUMBER_SQL)) {
 
-            stmt.setString(1, dni.trim());
+            stmt.setString(1, numeroPedido.trim());
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -520,14 +526,15 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         if (envioId > 0 && !rs.wasNull()) {
             envio = this.envioDAO.getById(envioId);
         }
+        Pedido.Estado estado = Pedido.Estado.valueOf(rs.getString("estado"));
         Pedido pedido = new Pedido(
                 rs.getInt("id"),
                 rs.getBoolean("eliminado"),
                 rs.getString("numero"),
                 rs.getDate("fecha"),
-                rs.getString("cliente_nombre"),
+                rs.getString("clienteNombre"),
                 rs.getDouble("total"),
-                Pedido.Estado.valueOf(rs.getString("estado")),
+                estado,
                 envio);
 
 

@@ -40,8 +40,10 @@ public class EnvioDAO implements GenericDAO<Envio> {
              fechaEstimada,
              tipo,
              empresa,
-             estado)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+             estado,
+             pedidoId
+             )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
     /**
@@ -133,7 +135,6 @@ public class EnvioDAO implements GenericDAO<Envio> {
              PreparedStatement stmt = conn.prepareStatement(INSERT_SQL, Statement.RETURN_GENERATED_KEYS)) {
             setearParametrosEnvio(stmt, envio);
             stmt.executeUpdate();
-
             setGeneratedId(stmt, envio);
         }
     }
@@ -288,12 +289,12 @@ public class EnvioDAO implements GenericDAO<Envio> {
     /**
      * Setea los parámetros de domicilio en un PreparedStatement.
      * Método auxiliar usado por insertar() e insertTx().
-     *
+     * <p>
      * Parámetros seteados:
      * 1. calle (String)
      * 2. numero (String)
      *
-     * @param stmt PreparedStatement con INSERT_SQL
+     * @param stmt  PreparedStatement con INSERT_SQL
      * @param envio Domicilio con los datos a insertar
      * @throws SQLException Si hay error al setear parámetros
      */
@@ -305,6 +306,12 @@ public class EnvioDAO implements GenericDAO<Envio> {
         stmt.setString(5, envio.getTipo().toString());
         stmt.setString(6, envio.getEmpresa().toString());
         stmt.setString(7, envio.getEstado().toString());
+        if (envio.getPedidoId() > 0) {
+            stmt.setInt(8, envio.getPedidoId());
+        } else {
+            stmt.setNull(8, Types.INTEGER);
+        }
+
     }
 
     /**
@@ -348,9 +355,10 @@ public class EnvioDAO implements GenericDAO<Envio> {
             Envio.Empresa.valueOf(rs.getString("empresa")),
             Envio.Tipo.valueOf(rs.getString("tipo")),
             rs.getDouble("costo"),
-            rs.getDate("fecha_despacho"),
-            rs.getDate("fecha_estimada"),
-            Envio.Estado.valueOf(rs.getString("estado"))
+            rs.getDate("fechaDespacho"),
+            rs.getDate("fechaEstimada"),
+            Envio.Estado.valueOf(rs.getString("estado")),
+            null
         );
     }
 }

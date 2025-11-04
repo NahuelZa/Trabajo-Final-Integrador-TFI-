@@ -3,8 +3,8 @@ package Main;
 import java.util.Scanner;
 import Dao.EnvioDAO;
 import Dao.PedidoDAO;
-import Service.DomicilioServiceImpl;
-import Service.PersonaServiceImpl;
+import Service.EnvioServiceImpl;
+import Service.PedidosServiceImpl;
 
 /**
  * Orquestador principal del menú de la aplicación.
@@ -63,10 +63,10 @@ public class AppMenu {
      */
     public AppMenu() {
         this.scanner = new Scanner(System.in);
-        PersonaServiceImpl personaService = createPersonaService();
-        this.menuHandler = new MenuHandler(scanner, personaService);
+        this.menuHandler = new MenuHandler(scanner, createPersonaService(), createEnviosService());
         this.running = true;
     }
+
 
     /**
      * Punto de entrada de la aplicación Java.
@@ -142,16 +142,15 @@ public class AppMenu {
      */
     private void processOption(int opcion) {
         switch (opcion) {
-            case 1 -> menuHandler.crearPersona();
-            case 2 -> menuHandler.listarPersonas();
+            case 1 -> menuHandler.crearPedido();
+            case 2 -> menuHandler.listarPedidos();
             case 3 -> menuHandler.actualizarPersona();
             case 4 -> menuHandler.eliminarPersona();
-            case 5 -> menuHandler.crearDomicilioIndependiente();
-            case 6 -> menuHandler.listarDomicilios();
-            case 7 -> menuHandler.actualizarDomicilioPorId();
+            case 6 -> menuHandler.listarEnvios();
+            case 7 -> menuHandler.actualizarEnvioPorId();
             case 8 -> menuHandler.eliminarDomicilioPorId();
-            case 9 -> menuHandler.actualizarDomicilioPorPersona();
-            case 10 -> menuHandler.eliminarDomicilioPorPersona();
+            case 9 -> menuHandler.actualizarEnvioPorPedido();
+            case 10 -> menuHandler.eliminarEnvioDePedido();
             case 0 -> {
                 System.out.println("Saliendo...");
                 running = false;
@@ -191,10 +190,17 @@ public class AppMenu {
      *
      * @return PersonaServiceImpl completamente inicializado con todas sus dependencias
      */
-    private PersonaServiceImpl createPersonaService() {
+    private PedidosServiceImpl createPersonaService() {
         EnvioDAO envioDAO = new EnvioDAO();
         PedidoDAO pedidoDAO = new PedidoDAO(envioDAO);
-        DomicilioServiceImpl domicilioService = new DomicilioServiceImpl(envioDAO);
-        return new PersonaServiceImpl(pedidoDAO, domicilioService);
+        EnvioServiceImpl domicilioService = new EnvioServiceImpl(envioDAO);
+        return new PedidosServiceImpl(pedidoDAO, domicilioService);
+    }
+
+
+    private EnvioServiceImpl createEnviosService() {
+        EnvioDAO envioDAO = new EnvioDAO();
+        EnvioServiceImpl enviosService = new EnvioServiceImpl(envioDAO);
+        return enviosService;
     }
 }

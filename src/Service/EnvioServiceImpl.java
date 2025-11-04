@@ -16,7 +16,7 @@ import Models.Envio;
  *
  * Patrón: Service Layer con inyección de dependencias
  */
-public class DomicilioServiceImpl implements GenericService<Envio> {
+public class EnvioServiceImpl implements GenericService<Envio> {
     /**
      * DAO para acceso a datos de domicilios.
      * Inyectado en el constructor (Dependency Injection).
@@ -31,7 +31,7 @@ public class DomicilioServiceImpl implements GenericService<Envio> {
      * @param domicilioDAO DAO de domicilios (normalmente DomicilioDAO)
      * @throws IllegalArgumentException si domicilioDAO es null
      */
-    public DomicilioServiceImpl(GenericDAO<Envio> domicilioDAO) {
+    public EnvioServiceImpl(GenericDAO<Envio> domicilioDAO) {
         if (domicilioDAO == null) {
             throw new IllegalArgumentException("DomicilioDAO no puede ser null");
         }
@@ -51,7 +51,7 @@ public class DomicilioServiceImpl implements GenericService<Envio> {
      */
     @Override
     public void insertar(Envio envio) throws Exception {
-        validateDomicilio(envio);
+        validateEnvio(envio);
         domicilioDAO.insertar(envio);
     }
 
@@ -70,7 +70,7 @@ public class DomicilioServiceImpl implements GenericService<Envio> {
      */
     @Override
     public void actualizar(Envio envio) throws Exception {
-        validateDomicilio(envio);
+        validateEnvio(envio);
         if (envio.getId() <= 0) {
             throw new IllegalArgumentException("El ID del domicilio debe ser mayor a 0 para actualizar");
         }
@@ -134,12 +134,9 @@ public class DomicilioServiceImpl implements GenericService<Envio> {
      * @param envio Domicilio a validar
      * @throws IllegalArgumentException Si alguna validación falla
      */
-    private void validateDomicilio(Envio envio) {
+    private void validateEnvio(Envio envio) {
         if (envio == null) {
             throw new IllegalArgumentException("El domicilio no puede ser null");
-        }
-        if (envio.getEmpresa() == null || envio.getEmpresa().trim().isEmpty()) {
-            throw new IllegalArgumentException("La calle no puede estar vacía");
         }
         if (envio.getTracking() == null || envio.getTracking().trim().isEmpty()) {
             throw new IllegalArgumentException("El número no puede estar vacío");
