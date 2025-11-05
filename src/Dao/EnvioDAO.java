@@ -302,8 +302,8 @@ public class EnvioDAO implements GenericDAO<Envio> {
     private void setearParametrosEnvio(PreparedStatement stmt, Envio envio) throws SQLException {
         stmt.setString(1, envio.getTracking());
         stmt.setDouble(2, envio.getCosto());
-        stmt.setDate(2, java.sql.Date.valueOf(envio.getFechaDespacho()));
-        stmt.setDate(2, java.sql.Date.valueOf(envio.getFechaEstimada()));
+        stmt.setDate(3, java.sql.Date.valueOf(envio.getFechaDespacho()));
+        stmt.setDate(4, java.sql.Date.valueOf(envio.getFechaEstimada()));
         stmt.setString(5, envio.getTipo().toString());
         stmt.setString(6, envio.getEmpresa().toString());
         stmt.setString(7, envio.getEstado().toString());
