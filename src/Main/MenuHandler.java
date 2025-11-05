@@ -90,11 +90,11 @@ public class MenuHandler {
             System.out.println("Fecha del Pedido: ");
             // TODO: Parsear fecha desde scanner
 
-            System.out.print("Ingrese dia del Pedido: (DD)");
+            System.out.print("Ingrese dia del Pedido: (DD) ");
             int dia = Integer.parseInt(scanner.nextLine().trim());
-            System.out.print("Ingrese mes: (MM)");
+            System.out.print("Ingrese mes: (MM) ");
             int mes = (Integer.parseInt(scanner.nextLine().trim()));
-            System.out.print("Ingrese ano: (AAAA");
+            System.out.print("Ingrese ano: (AAAA) ");
             int ano = Integer.parseInt(scanner.nextLine().trim());
             LocalDate fecha = LocalDate.of(ano, mes, dia);
             System.out.print("Nombre del Cliente: ");
