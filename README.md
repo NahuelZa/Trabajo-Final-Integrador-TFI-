@@ -1,4 +1,80 @@
+# Sistema de Gestión de Pedidos y Envíos
 
+Trabajo Final Integrador (Programación 2)
+
+Descripción
+Sistema de consola para gestionar pedidos y sus envíos asociados. Permite crear, listar, actualizar, eliminar y buscar pedidos; además, administrar envíos relacionados, con soporte de validaciones, transacciones y persistencia en MySQL mediante JDBC.
+
+Estado actual del proyecto
+- Arquitectura en capas: Main (UI por consola) → Service → DAO → Models → MySQL
+- Entidades: Pedido y Envío
+- Persistencia: JDBC puro con PreparedStatement y manejo de transacciones
+- Configuración: archivo db.properties en la raíz del proyecto
+- Script de base de datos: SQL BBD\Script.sql (crea BD y tablas)
+
+Requisitos
+- Java 17 o superior
+- MySQL/MariaDB (probado con MariaDB 10.4+ y MySQL 8+)
+- MySQL Connector/J (si ejecutas fuera de un IDE, debe estar en el classpath)
+
+Estructura principal
+- src\Main\AppMenu.java: punto de entrada principal por consola
+- src\Main\Main.java: punto de entrada alternativo que delega a AppMenu
+- src\Main\MenuHandler.java: orquestación de opciones del menú y entrada de usuario
+- src\Config\DatabaseConnection.java: fábrica de conexiones JDBC; lee db.properties
+- src\Dao\PedidoDAO.java y src\Dao\EnvioDAO.java: acceso a datos (CRUD y búsquedas)
+- src\Service\PedidosServiceImpl.java y src\Service\EnvioServiceImpl.java: reglas de negocio y validaciones
+- src\Models\Pedido.java y src\Models\Envio.java: modelos del dominio
+- SQL BBD\Script.sql: crea la base de datos y tablas requeridas
+- db.properties: parámetros de conexión a BD
+
+Configuración de la base de datos
+1) Crear la base de datos y tablas
+   - Abre y ejecuta el archivo: SQL BBD\\Script.sql
+
+2) Configurar credenciales
+   - Edita el archivo db.properties en la raíz del proyecto:
+     url=jdbc:mysql://localhost:3306/pedidosenvios
+     user=root
+     password=
+   - También puedes usar otras credenciales según tu entorno.
+
+3) Driver JDBC
+   - Asegúrate de que el conector de MySQL (MySQL Connector/J) esté disponible en tiempo de ejecución si ejecutas desde terminal fuera del IDE.
+
+Cómo ejecutar
+Opción A: Desde IntelliJ IDEA u otro IDE
+- Marca la carpeta src como "Sources"
+- Ejecuta la clase Main o AppMenu (ambas funcionan); el menú se mostrará en la consola
+- Para probar la conexión, puedes ejecutar src\Main\TestConexion.java
+
+Opción B: Desde terminal (ejemplo orientativo)
+- Compila las clases apuntando el classpath al conector JDBC
+- Ejecuta Main o AppMenu asegurando el classpath correcto y la presencia de db.properties en el directorio de trabajo
+
+Características principales
+- CRUD de Pedidos (con estado: NUEVO, FACTURADO, ENVIADO)
+- Asociación Pedido ↔ Envío (opcional)
+- CRUD de Envíos (tracking único, costos, fechas, tipo, empresa, estado)
+- Búsqueda de pedidos por número y por nombre de cliente
+- Soft delete (eliminación lógica) y consultas que filtran registros eliminados
+- Validaciones en capa de servicio (campos obligatorios, formatos, unicidad)
+- Transacciones con commit/rollback para operaciones compuestas
+- Uso de PreparedStatement para evitar SQL Injection
+
+Parámetros por defecto en código
+- DatabaseConnection.DEFAULT_URL: jdbc:mysql://localhost:3306/pedidosenvios (configurable desde db.properties)
+- Usuario por defecto: root
+- Password por defecto: vacío
+- Estos valores pueden sobrescribirse con db.properties o propiedades del sistema (-Ddb.url, -Ddb.user, -Ddb.password)
+
+Notas
+- El proyecto no usa Gradle/Maven en esta versión; es un proyecto de Java simple orientado a ejecución desde IDE o compilación manual.
+- Si ves referencias a "Personas/Domicilios" en archivos antiguos del repositorio, son restos de una versión previa. La versión vigente es "Pedidos y Envíos".
+
+---
+
+## Contenido histórico (no vigente)
 # Sistema de Gestión de Personas y Domicilios
 
 ## Trabajo Práctico Integrador - Programación 2
@@ -121,40 +197,20 @@ Por defecto conecta a:
 - **Usuario**: root
 - **Contraseña**: (vacía)
 
-Para cambiar la configuración, usar propiedades del sistema:
+Para cambiar la configuración, crear un archivo llamado `db.properties` con
+el siguiente formato:
 
-```bash
-java -Ddb.url=jdbc:mysql://localhost:3306/dbtpi3 \
-     -Ddb.user=usuario \
-     -Ddb.password=clave \
-     -cp ...
+```properties
+url=jdbc:mysql://ruta:puerto/nombre_db
+user=usuario
+password=contraseña
 ```
 
 ## Ejecución
 
 ### Opción 1: Desde IDE
-1. Abrir proyecto en IntelliJ IDEA o Eclipse
+1. Abrir proyecto en IntelliJ IDEA, Eclipse o Netbeans
 2. Ejecutar clase `Main.Main`
-
-### Opción 2: Línea de comandos
-
-**Windows:**
-```bash
-# Localizar JAR de MySQL
-dir /s /b %USERPROFILE%\.gradle\caches\*mysql-connector-j-8.4.0.jar
-
-# Ejecutar (reemplazar <ruta-mysql-jar>)
-java -cp "build\classes\java\main;<ruta-mysql-jar>" Main.Main
-```
-
-**Linux/macOS:**
-```bash
-# Localizar JAR de MySQL
-find ~/.gradle/caches -name "mysql-connector-j-8.4.0.jar"
-
-# Ejecutar (reemplazar <ruta-mysql-jar>)
-java -cp "build/classes/java/main:<ruta-mysql-jar>" Main.Main
-```
 
 ### Verificar Conexión
 
@@ -178,16 +234,16 @@ Driver: MySQL Connector/J v8.4.0
 
 ```
 ========= MENU =========
-1. Crear persona
-2. Listar personas
-3. Actualizar persona
-4. Eliminar persona
-5. Crear domicilio
-6. Listar domicilios
-7. Actualizar domicilio por ID
-8. Eliminar domicilio por ID
-9. Actualizar domicilio por ID de persona
-10. Eliminar domicilio por ID de persona
+1. Crear pedido
+2. Listar pedidos
+3. Actualizar pedido
+4. Eliminar pedido
+5. Crear envío
+6. Listar envíos
+7. Actualizar envío por ID
+8. Eliminar envío por ID
+9. Actualizar envío por ID de pedido
+10. Eliminar envío por ID de pedido
 0. Salir
 ```
 
