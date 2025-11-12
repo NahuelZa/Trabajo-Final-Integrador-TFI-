@@ -1,8 +1,35 @@
+## Tecnicatura Universitaria en Programación
+**Aplicación Java con relación 1→1 unidireccional + DAO + MySQL**
+
+## Tema elegido :
+
+**Pedido → Envío**
+Desarrollar una aplicación en Java que modele dos clases relacionadas mediante una
+asociación unidireccional 1 a 1 (la clase “A” referencia a la clase “B”), persistiendo
+datos en una base relacional mediante JDBC y el patrón DAO, con operaciones
+transaccionales (commit/rollback) y menú de consola para CRUD.
+
+## Integrantes:
+**Nahuel Urciuoli Zabala**  - Comision 9
+
+## Descripción del proyecto
+Este repositorio contiene los archivos referidos al trabajo final de Programacion II
+
+Código fuente: Archivo Java + SQL + UML
+
+Documentación: PDF con UML, explicacion de funcionamiento y resultados.
+
+Video explicativo: xxxx
+
+## Instrucciones de uso:
+
+Revisar la documentación: Abrir el archivo Word para contexto teórico.
+
+Ver el video: Visualizar la explicación multimedia para reforzar conceptos.
+
 # Sistema de Gestión de Pedidos y Envíos
 
-Trabajo Final Integrador (Programación 2)
-
-Descripción
+#### Descripción
 Sistema de consola para gestionar pedidos y sus envíos asociados. Permite crear, listar, actualizar, eliminar y buscar pedidos; además, administrar envíos relacionados, con soporte de validaciones, transacciones y persistencia en MySQL mediante JDBC.
 
 Estado actual del proyecto
@@ -70,18 +97,7 @@ Parámetros por defecto en código
 
 Notas
 - El proyecto no usa Gradle/Maven en esta versión; es un proyecto de Java simple orientado a ejecución desde IDE o compilación manual.
-- Si ves referencias a "Personas/Domicilios" en archivos antiguos del repositorio, son restos de una versión previa. La versión vigente es "Pedidos y Envíos".
-
 ---
-
-## Contenido histórico (no vigente)
-# Sistema de Gestión de Personas y Domicilios
-
-## Trabajo Práctico Integrador - Programación 2
-
-### Descripción del Proyecto
-
-Este Trabajo Práctico Integrador tiene como objetivo demostrar la aplicación práctica de los conceptos fundamentales de Programación Orientada a Objetos y Persistencia de Datos aprendidos durante el cursado de Programación 2. El proyecto consiste en desarrollar un sistema completo de gestión de personas y domicilios que permita realizar operaciones CRUD (Crear, Leer, Actualizar, Eliminar) sobre estas entidades, implementando una arquitectura robusta y profesional.
 
 ### Objetivos Académicos
 
@@ -132,64 +148,8 @@ El desarrollo de este sistema permite aplicar y consolidar los siguientes concep
 
 El sistema permite gestionar dos entidades principales con las siguientes operaciones:
 
-## Características Principales
-
-- **Gestión de Personas**: Crear, listar, actualizar y eliminar personas con validación de DNI único
-- **Gestión de Domicilios**: Administrar domicilios de forma independiente o asociados a personas
-- **Búsqueda Inteligente**: Filtrar personas por nombre o apellido con coincidencias parciales
-- **Soft Delete**: Eliminación lógica que preserva la integridad de datos
-- **Seguridad**: Protección contra SQL injection mediante PreparedStatements
-- **Validación Multi-capa**: Validaciones en capa de servicio y base de datos
-- **Transacciones**: Soporte para operaciones atómicas con rollback automático
-
-## Requisitos del Sistema
-
-| Componente | Versión Requerida |
-|------------|-------------------|
-| Java JDK | 17 o superior |
-| MySQL | 8.0 o superior |
-| Gradle | 8.12 (incluido wrapper) |
-| Sistema Operativo | Windows, Linux o macOS |
-
-## Instalación
-
-### 1. Configurar Base de Datos
-
-Ejecutar el siguiente script SQL en MySQL:
-
-```sql
-CREATE DATABASE IF NOT EXISTS dbtpi3;
-USE dbtpi3;
-
-CREATE TABLE domicilios (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    calle VARCHAR(100) NOT NULL,
-    numero VARCHAR(10) NOT NULL,
-    eliminado BOOLEAN DEFAULT FALSE
-);
-
-CREATE TABLE personas (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    nombre VARCHAR(50) NOT NULL,
-    apellido VARCHAR(50) NOT NULL,
-    dni VARCHAR(20) NOT NULL UNIQUE,
-    domicilio_id INT,
-    eliminado BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (domicilio_id) REFERENCES domicilios(id)
-);
-```
-
-### 2. Compilar el Proyecto
-
-```bash
-# Linux/macOS
-./gradlew clean build
-
-# Windows
-gradlew.bat clean build
-```
-
-### 3. Configurar Conexión (Opcional)
+# Instrucciones (completar)
+### Configurar Conexión (Opcional)
 
 Por defecto conecta a:
 - **Host**: localhost:3306
@@ -246,6 +206,7 @@ Driver: MySQL Connector/J v8.4.0
 10. Eliminar envío por ID de pedido
 0. Salir
 ```
+# TODO: Falta actualziar
 
 ### Operaciones Disponibles
 
@@ -436,75 +397,6 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 6. **Búsqueda flexible**: LIKE con % permite coincidencias parciales
 7. **Transacciones**: Operaciones complejas soportan rollback
 
-## Solución de Problemas
-
-### Error: "ClassNotFoundException: com.mysql.cj.jdbc.Driver"
-**Causa**: JAR de MySQL no está en classpath
-
-**Solución**: Incluir mysql-connector-j-8.4.0.jar en el comando java -cp
-
-### Error: "Communications link failure"
-**Causa**: MySQL no está ejecutándose
-
-**Solución**:
-```bash
-# Linux/macOS
-sudo systemctl start mysql
-# O
-brew services start mysql
-
-# Windows
-net start MySQL80
-```
-
-### Error: "Access denied for user 'root'@'localhost'"
-**Causa**: Credenciales incorrectas
-
-**Solución**: Verificar usuario/contraseña en DatabaseConnection.java o usar -Ddb.user y -Ddb.password
-
-### Error: "Unknown database 'dbtpi3'"
-**Causa**: Base de datos no creada
-
-**Solución**: Ejecutar script de creación de base de datos (ver sección Instalación)
-
-### Error: "Table 'personas' doesn't exist"
-**Causa**: Tablas no creadas
-
-**Solución**: Ejecutar script de creación de tablas (ver sección Instalación)
-
-## Limitaciones Conocidas
-
-1. **No hay tarea gradle run**: Debe ejecutarse con java -cp manualmente o desde IDE
-2. **Interfaz solo consola**: No hay GUI gráfica
-3. **Un domicilio por persona**: No soporta múltiples domicilios
-4. **Sin paginación**: Listar todos puede ser lento con muchos registros
-5. **Opción 8 peligrosa**: Eliminar domicilio por ID puede dejar referencias huérfanas (usar opción 10)
-6. **Sin pool de conexiones**: Nueva conexión por operación (aceptable para app de consola)
-7. **Sin transacciones en MenuHandler**: Actualizar persona + domicilio puede fallar parcialmente
-
-## Documentación Adicional
-
-- **CLAUDE.md**: Documentación técnica detallada para desarrollo
-  - Comandos de build y ejecución
-  - Arquitectura profunda
-  - Patrones de código críticos
-  - Troubleshooting avanzado
-  - Verificación de calidad (score 9.7/10)
-
-- **HISTORIAS_DE_USUARIO.md**: Especificaciones funcionales completas
-  - Historias de usuario detalladas
-  - Reglas de negocio numeradas
-  - Criterios de aceptación en formato Gherkin
-  - Diagramas de flujo
-
-## Tecnologías Utilizadas
-
-- **Lenguaje**: Java 17
-- **Build Tool**: Gradle 8.12
-- **Base de Datos**: MySQL 8.x
-- **JDBC Driver**: mysql-connector-j 8.4.0
-- **Testing**: JUnit 5 (configurado, sin tests implementados)
-
 ## Estructura de Directorios
 
 ```
@@ -622,107 +514,3 @@ Este proyecto demuestra competencia en los siguientes criterios académicos:
 | **Resource Management** | Try-with-resources para AutoCloseable (Connection, Statement, ResultSet) |
 | **Dependency Injection** | Construcción manual de dependencias en `AppMenu.createPersonaService()` |
 
-## Contexto Académico
-
-**Materia**: Programación 2
-**Tipo de Evaluación**: Trabajo Práctico Integrador (TPI)
-**Modalidad**: Desarrollo de sistema CRUD con persistencia en base de datos
-**Objetivo**: Aplicar conceptos de POO, JDBC, arquitectura en capas y patrones de diseño
-
-Este proyecto representa la integración de todos los conceptos vistos durante el cuatrimestre, demostrando capacidad para:
-- Diseñar sistemas con arquitectura profesional
-- Implementar persistencia de datos con JDBC
-- Aplicar patrones de diseño apropiados
-- Manejar recursos y excepciones correctamente
-- Validar integridad de datos en múltiples niveles
-- Documentar código de forma profesional
-
----
-
-**Versión**: 1.0
-**Java**: 17+
-**MySQL**: 8.x
-**Gradle**: 8.12
-**Proyecto Educativo** - Trabajo Práctico Integrador de Programación 2
-=======
-# Trabajo-Final-Integrador- Programacion II
-
-## Tecnicatura Universitaria en Programación
-  **Aplicación Java con relación 1→1 unidireccional + DAO + MySQL**
-
-## Tema elegido :
-  **Pedido → Envio**
-    Desarrollar una aplicación en Java que modele dos clases relacionadas mediante una
-    asociación unidireccional 1 a 1 (la clase “A” referencia a la clase “B”), persistiendo
-    datos en una base relacional mediante JDBC y el patrón DAO, con operaciones
-    transaccionales (commit/rollback) y menú de consola para CRUD.
-
-## Integrantes: 
-  **Nahuel Urciuoli Zabala**  - Comision 9  
-  
-
-## Descripción del proyecto
-Este repositorio contiene los archivos referidos al trabajo final de Programacion II 
-
-Código fuente: Archivo Java + SQL + UML
-
-Documentación: PDF con UML, explicacion de funcionamiento y resultados.
-
-Video explicativo: xxxx
-
-## Instrucciones de uso:
-
-Revisar la documentación: Abrir el archivo Word para contexto teórico.
-
-Ejecutar el código.
-
-Ver el video: Visualizar la explicación multimedia para reforzar conceptos.
-
-## Reflexiones del equipo:
-
-La complejidad algorítmica es crucial para aplicaciones con grandes volúmenes de datos
-
-Pequeñas diferencias en implementación pueden generar grandes impactos en rendimiento
-
-El análisis Big-O ayuda a tomar decisiones informadas sobre qué algoritmo usar
-
-# Trabajo-Final-Integrador- Programacion II
-
-## Tecnicatura Universitaria en Programación
-  **Aplicación Java con relación 1→1 unidireccional + DAO + MySQL**
-
-## Tema elegido :
-  **Pedido → Envio**
-    Desarrollar una aplicación en Java que modele dos clases relacionadas mediante una
-    asociación unidireccional 1 a 1 (la clase “A” referencia a la clase “B”), persistiendo
-    datos en una base relacional mediante JDBC y el patrón DAO, con operaciones
-    transaccionales (commit/rollback) y menú de consola para CRUD.
-
-## Integrantes: 
-  **Nahuel Urciuoli Zabala**  - Comision 9  
-  
-
-## Descripción del proyecto
-Este repositorio contiene los archivos referidos al trabajo final de Programacion II 
-
-Código fuente: Archivo Java + SQL + UML
-
-Documentación: PDF con UML, explicacion de funcionamiento y resultados.
-
-Video explicativo: xxxx
-
-## Instrucciones de uso:
-
-Revisar la documentación: Abrir el archivo Word para contexto teórico.
-
-Ejecutar el código.
-
-Ver el video: Visualizar la explicación multimedia para reforzar conceptos.
-
-## Reflexiones del equipo:
-
-La complejidad algorítmica es crucial para aplicaciones con grandes volúmenes de datos
-
-Pequeñas diferencias en implementación pueden generar grandes impactos en rendimiento
-
-El análisis Big-O ayuda a tomar decisiones informadas sobre qué algoritmo usar
