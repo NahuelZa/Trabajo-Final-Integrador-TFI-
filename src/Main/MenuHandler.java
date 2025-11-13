@@ -35,7 +35,7 @@ public class MenuHandler {
 
     /**
      * Servicio de pedidos para operaciones CRUD.
-     * También proporciona acceso a DomicilioService mediante getDomicilioService().
+     * También proporciona acceso a EnvioService mediante getEnvioService().
      */
     private final PedidosServiceImpl pedidosService;
     private final EnvioServiceImpl enviosService;
@@ -417,12 +417,12 @@ public class MenuHandler {
      */
     public void eliminarEnvioPorId() {
         try {
-            System.out.print("ID del domicilio a eliminar: ");
+            System.out.print("ID del envío a eliminar: ");
             int id = Integer.parseInt(scanner.nextLine());
             pedidosService.getEnvioService().eliminar(id);
-            System.out.println("Domicilio eliminado exitosamente.");
+            System.out.println("Envío eliminado exitosamente.");
         } catch (Exception e) {
-            System.err.println("Error al eliminar domicilio: " + e.getMessage());
+            System.err.println("Error al eliminar envío: " + e.getMessage());
         }
     }
 
@@ -504,21 +504,17 @@ public class MenuHandler {
     }
 
     /**
-     * Método auxiliar privado: Crea un objeto Domicilio capturando calle y número.
+     * Método auxiliar: Captura desde consola los datos y crea un Envío asociado a un Pedido.
      *
      * Flujo:
-     * 1. Solicita calle (con trim)
-     * 2. Solicita número (con trim)
-     * 3. Crea objeto Domicilio con ID=0 (será asignado por BD al insertar)
+     * 1. Solicita tracking, empresa, tipo, estado y costo
+     * 2. Solicita fechas de despacho y estimada (valida orden lógico de fechas)
+     * 3. Crea el objeto Envio en memoria y lo inserta usando enviosService
      *
-     * Usado por:
-     * - crearPersona(): Para agregar domicilio al crear persona
-     * - actualizarDomicilioDePersona(): Para agregar domicilio a persona sin domicilio
-     *
-     * Nota: NO persiste en BD, solo crea el objeto en memoria.
-     * El caller es responsable de insertar el domicilio.
-     *
-     * @return Domicilio nuevo (no persistido, ID=0)
+     * Notas:
+     * - Valida que la fecha de despacho no sea anterior a la fecha del pedido
+     * - Valida que la fecha estimada no sea anterior a la fecha de despacho
+     * - Devuelve null (inserción realizada por el servicio); el pedido puede consultarse luego para obtener el envío
      */
    
     
@@ -602,24 +598,23 @@ public class MenuHandler {
 
     }
     /**
-     * Método auxiliar privado: Maneja actualización de domicilio dentro de actualizar persona.
+     * Método auxiliar privado: Maneja la actualización o alta del envío dentro de actualizarPedido().
      *
      * Casos:
-     * 1. Persona TIENE domicilio:
+     * 1. El pedido TIENE envío:
      *    - Pregunta si desea actualizar
-     *    - Si sí, permite cambiar calle y número (Enter para mantener)
-     *    - Actualiza domicilio en BD (afecta a TODAS las personas que lo comparten)
+     *    - Permite cambiar empresa y tracking (Enter para mantener)
+     *    - Actualiza el envío en BD
      *
-     * 2. Persona NO TIENE domicilio:
+     * 2. El pedido NO TIENE envío:
      *    - Pregunta si desea agregar uno
-     *    - Si sí, captura calle y número con crearDomicilio()
-     *    - Inserta domicilio en BD (obtiene ID)
-     *    - Asocia domicilio a la persona
+     *    - Si sí, captura datos con crearEnvio(pedido) e inserta el envío
+     *    - Asocia el envío al pedido
      *
-     * Usado exclusivamente por actualizarPersona() (opción 3).
+     * Usado exclusivamente por actualizarPedido() (opción 3).
      *
-     * @param p Persona a la que se le actualizará/agregará domicilio
-     * @throws Exception Si hay error al insertar/actualizar domicilio
+     * @param p Pedido al que se le actualizará/agregará el envío
+     * @throws Exception Si hay error al insertar/actualizar envío
      */
     private void actualizarEnvioDePedido(Pedido p) throws Exception {
         if (p.getEnvio() != null) {
