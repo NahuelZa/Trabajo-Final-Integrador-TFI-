@@ -5,12 +5,12 @@ import Dao.GenericDAO;
 import Models.Envio;
 
 /**
- * Implementación del servicio de negocio para la entidad Domicilio.
+ * Implementación del servicio de negocio para la entidad Envío.
  * Capa intermedia entre la UI y el DAO que aplica validaciones de negocio.
  *
  * Responsabilidades:
- * - Validar que los datos del domicilio sean correctos ANTES de persistir
- * - Aplicar reglas de negocio (RN-023: calle y número obligatorios)
+ * - Validar que los datos del envío sean correctos ANTES de persistir
+ * - Aplicar reglas de negocio (por ejemplo: tracking obligatorio)
  * - Delegar operaciones de BD al DAO
  * - Transformar excepciones técnicas en errores de negocio comprensibles
  *
@@ -18,7 +18,7 @@ import Models.Envio;
  */
 public class EnvioServiceImpl implements GenericService<Envio> {
     /**
-     * DAO para acceso a datos de domicilios.
+     * DAO para acceso a datos de envíos.
      * Inyectado en el constructor (Dependency Injection).
      * Usa GenericDAO para permitir testing con mocks.
      */
@@ -28,7 +28,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
      * Constructor con inyección de dependencias.
      * Valida que el DAO no sea null (fail-fast).
      *
-     * @param envioDAO DAO de domicilios (normalmente DomicilioDAO)
+     * @param envioDAO DAO de envíos
      * @throws IllegalArgumentException si envioDAO es null
      */
     public EnvioServiceImpl(GenericDAO<Envio> envioDAO) {
@@ -39,14 +39,14 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     }
 
     /**
-     * Inserta un nuevo domicilio en la base de datos.
+     * Inserta un nuevo envío en la base de datos.
      *
      * Flujo:
-     * 1. Valida que calle y número no estén vacíos
+     * 1. Valida que el tracking no esté vacío
      * 2. Delega al DAO para insertar
-     * 3. El DAO asigna el ID autogenerado al objeto domicilio
+     * 3. El DAO asigna el ID autogenerado al objeto envío
      *
-     * @param envio Domicilio a insertar (id será ignorado y regenerado)
+     * @param envio Envío a insertar (id será ignorado y regenerado)
      * @throws Exception Si la validación falla o hay error de BD
      */
     @Override
@@ -56,17 +56,17 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     }
 
     /**
-     * Actualiza un domicilio existente en la base de datos.
+     * Actualiza un envío existente en la base de datos.
      *
      * Validaciones:
-     * - El domicilio debe tener datos válidos (calle, número)
-     * - El ID debe ser > 0 (debe ser un domicilio ya persistido)
+     * - El envío debe tener datos válidos (tracking)
+     * - El ID debe ser > 0 (debe ser un envío ya persistido)
      *
-     * IMPORTANTE: Si varias personas comparten este domicilio,
-     * la actualización los afectará a TODAS (RN-040).
+     * IMPORTANTE: Si varios pedidos compartieran este envío,
+     * la actualización los afectaría a TODOS (RN-040).
      *
-     * @param envio Domicilio con los datos actualizados
-     * @throws Exception Si la validación falla o el domicilio no existe
+     * @param envio Envío con los datos actualizados
+     * @throws Exception Si la validación falla o el envío no existe
      */
     @Override
     public void actualizar(Envio envio) throws Exception {
@@ -78,17 +78,17 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     }
 
     /**
-     * Elimina lógicamente un domicilio (soft delete).
-     * Marca el domicilio como eliminado=TRUE sin borrarlo físicamente.
+     * Elimina lógicamente un envío (soft delete).
+     * Marca el envío como eliminado=TRUE sin borrarlo físicamente.
      *
-     * ⚠️ ADVERTENCIA: Este método NO verifica si hay personas asociadas.
-     * Puede dejar referencias huérfanas en personas.domicilio_id (RN-029).
+     * Advertencia: Este método NO verifica si hay pedidos asociados.
+     * Puede dejar referencias a envíos marcados como eliminados en pedidos.
      *
-     * ALTERNATIVA SEGURA: Usar PersonaServiceImpl.eliminarDomicilioDePersona()
-     * que actualiza la FK antes de eliminar (opción 10 del menú).
+     * Alternativa sugerida: desasociar el envío desde el servicio de pedidos
+     * antes de eliminarlo para evitar referencias inconsistentes.
      *
-     * @param id ID del domicilio a eliminar
-     * @throws Exception Si id <= 0 o no existe el domicilio
+     * @param id ID del envío a eliminar
+     * @throws Exception Si id <= 0 o no existe el envío
      */
     @Override
     public void eliminar(int id) throws Exception {

@@ -8,8 +8,8 @@ import Models.Envio;
 import java.time.LocalDate;
 
 /**
- * Data Access Object para la entidad Envio.
- * Gestiona todas las operaciones de persistencia de domicilios en la base de datos.
+ * Data Access Object para la entidad Envío.
+ * Gestiona todas las operaciones de persistencia de envíos en la base de datos.
  *
  * Características:
  * - Implementa GenericDAO<Envio> para operaciones CRUD estándar
@@ -18,8 +18,8 @@ import java.time.LocalDate;
  * - NO maneja relaciones (Envio es entidad independiente)
  * - Soporta transacciones mediante insertTx() (recibe Connection externa)
  *
- * Diferencias con EnvioDAO:
- * - Más simple: NO tiene LEFT JOINs (Domicilio no tiene relaciones cargadas)
+ * Diferencias con otros DAO:
+ * - Más simple: NO tiene LEFT JOINs (Envío no tiene relaciones cargadas aquí)
  * - NO tiene búsquedas especializadas (solo CRUD básico)
  * - Todas las queries filtran por eliminado=FALSE (soft delete)
  *
@@ -27,8 +27,8 @@ import java.time.LocalDate;
  */
 public class EnvioDAO implements GenericDAO<Envio> {
     /**
-     * Query de inserción de domicilio.
-     * Inserta calle y número.
+     * Query de inserción de envío.
+     * Inserta tracking, empresa, tipo, estado, costo, fechas y FK pedidoId.
      * El id es AUTO_INCREMENT y se obtiene con RETURN_GENERATED_KEYS.
      * El campo eliminado tiene DEFAULT FALSE en la BD.
      */
@@ -48,12 +48,11 @@ public class EnvioDAO implements GenericDAO<Envio> {
         """;
 
     /**
-     * Query de actualización de domicilio.
-     * Actualiza calle y número por id.
+     * Query de actualización de envío.
+     * Actualiza los campos principales por id (tracking, empresa, tipo, estado, costo, fechas).
      * NO actualiza el flag eliminado (solo se modifica en soft delete).
      *
-     * ⚠️ IMPORTANTE: Si varias personas comparten este domicilio,
-     * la actualización los afectará a TODAS (RN-040).
+     * Nota: si hubiera varios pedidos vinculados a un mismo envío, la actualización impactará a todos.
      */
     
     
@@ -79,9 +78,8 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * Marca eliminado=TRUE sin borrar físicamente la fila.
      * Preserva integridad referencial y datos históricos.
      *
-     * ⚠️ PELIGRO: Este método NO verifica si hay personas asociadas.
-     * Puede dejar FKs huérfanas (personas.domicilio_id apuntando a domicilio eliminado).
-     * ALTERNATIVA SEGURA: PersonaServiceImpl.eliminarDomicilioDePersona()
+     * Nota: Este método no verifica si hay pedidos asociados al envío.
+     * Considere desasociar el envío de los pedidos antes de eliminarlo desde el servicio correspondiente.
      */
     private static final String DELETE_SQL = """
         UPDATE
@@ -91,9 +89,8 @@ public class EnvioDAO implements GenericDAO<Envio> {
     """;
 
     /**
-     * Query para obtener domicilio por ID.
-     * Solo retorna domicilios activos (eliminado=FALSE).
-     * SELECT * es aceptable aquí porque Domicilio tiene solo 4 columnas.
+     * Query para obtener envío por ID.
+     * Solo retorna envíos activos (eliminado=FALSE).
      */
     private static final String SELECT_BY_ID_SQL = """
         SELECT
@@ -104,9 +101,8 @@ public class EnvioDAO implements GenericDAO<Envio> {
         """;
 
     /**
-     * Query para obtener todos los domicilios activos.
-     * Filtra por eliminado=FALSE (solo domicilios activos).
-     * SELECT * es aceptable aquí porque Domicilio tiene solo 4 columnas.
+     * Query para obtener todos los envíos activos.
+     * Filtra por eliminado=FALSE (solo envíos activos).
      */
     private static final String SELECT_ALL_SQL = """
         SELECT
@@ -117,22 +113,21 @@ public class EnvioDAO implements GenericDAO<Envio> {
         """;
 
     /**
-     * Inserta un domicilio en la base de datos (versión sin transacción).
+     * Inserta un envío en la base de datos (versión sin transacción).
      * Crea su propia conexión y la cierra automáticamente.
      *
      * Flujo:
      * 1. Abre conexión con DatabaseConnection.getConnection()
      * 2. Crea PreparedStatement con INSERT_SQL y RETURN_GENERATED_KEYS
-     * 3. Setea parámetros (calle, numero)
+     * 3. Setea parámetros del envío (tracking, empresa, tipo, estado, costo, fechas)
      * 4. Ejecuta INSERT
-     * 5. Obtiene el ID autogenerado y lo asigna a domicilio.id
+     * 5. Obtiene el ID autogenerado y lo asigna a envio.id
      * 6. Cierra recursos automáticamente (try-with-resources)
      *
-     * IMPORTANTE: El ID generado se asigna al objeto domicilio.
-     * Esto permite que PersonaServiceImpl.insertar() use domicilio.getId()
-     * inmediatamente después de insertar.
+     * IMPORTANTE: El ID generado se asigna al objeto envío.
+     * Esto permite asociarlo inmediatamente a un Pedido si corresponde.
      *
-     * @param envio Domicilio a insertar (id será ignorado y regenerado)
+     * @param envio Envío a insertar (id será ignorado y regenerado)
      * @throws SQLException Si falla la inserción o no se obtiene ID generado
      */
     @Override
@@ -201,31 +196,28 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Elimina lógicamente un domicilio (soft delete).
+     * Elimina lógicamente un envío (soft delete).
      * Marca eliminado=TRUE sin borrar físicamente la fila.
      *
      * Validaciones:
-     * - Si rowsAffected == 0 → El domicilio no existe o ya está eliminado
+     * - Si rowsAffected == 0 → El envío no existe o ya está eliminado
      *
-     * ⚠️ PELIGRO: Este método NO verifica si hay personas asociadas (RN-029).
-     * Si hay personas con personas.domicilio_id apuntando a este domicilio,
-     * quedarán con FK huérfana (apuntando a un domicilio eliminado).
+     * ⚠️ PELIGRO: Este método NO verifica si hay pedidos asociados (RN-029).
+     * Si hay pedidos con envío asociado a este registro,
+     * quedarán con referencia a un envío marcado como eliminado.
      *
      * Esto puede causar:
-     * - Datos inconsistentes (persona asociada a domicilio "eliminado")
-     * - Errores en LEFT JOINs que esperan domicilios activos
+     * - Datos inconsistentes (pedido asociado a envío "eliminado")
      *
-     * ALTERNATIVA SEGURA: PersonaServiceImpl.eliminarDomicilioDePersona()
-     * - Primero actualiza persona.domicilio_id = NULL
-     * - Luego elimina el domicilio
-     * - Garantiza que no queden FKs huérfanas
+     * Alternativa recomendada: gestionar la desasociación del envío desde el servicio de pedidos
+     * antes de eliminarlo para evitar referencias inconsistentes.
      *
      * Este método se mantiene para casos donde:
-     * - Se está seguro de que el domicilio NO tiene personas asociadas
-     * - Se quiere eliminar domicilios en lote (administración)
+     * - Se está seguro de que el envío NO tiene pedidos asociados
+     * - Se quiere eliminar envíos en lote (administración)
      *
-     * @param id ID del domicilio a eliminar
-     * @throws SQLException Si el domicilio no existe o hay error de BD
+     * @param id ID del envío a eliminar
+     * @throws SQLException Si el envío no existe o hay error de BD
      */
     @Override
     public void eliminar(int id) throws SQLException {

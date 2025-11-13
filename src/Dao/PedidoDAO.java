@@ -10,15 +10,15 @@ import Models.Envio;
 import java.time.LocalDate;
 
 /**
- * Data Access Object para la entidad Persona.
- * Gestiona todas las operaciones de persistencia de personas en la base de datos.
+ * Data Access Object para la entidad Pedido.
+ * Gestiona todas las operaciones de persistencia de pedidos en la base de datos.
  *
  * Características:
- * - Implementa GenericDAO<Persona> para operaciones CRUD estándar
+ * - Implementa GenericDAO<Pedido> para operaciones CRUD estándar
  * - Usa PreparedStatements en TODAS las consultas (protección contra SQL injection)
- * - Maneja LEFT JOIN con domicilios para cargar la relación de forma eager
+ * - Maneja LEFT JOIN con envíos para cargar la relación de forma eager
  * - Implementa soft delete (eliminado=TRUE, no DELETE físico)
- * - Proporciona búsquedas especializadas (por DNI exacto, por nombre/apellido con LIKE)
+ * - Proporciona búsquedas especializadas (por número exacto, por nombre de cliente con LIKE)
  * - Soporta transacciones mediante insertTx() (recibe Connection externa)
  *
  * Patrón: DAO con try-with-resources para manejo automático de recursos JDBC
