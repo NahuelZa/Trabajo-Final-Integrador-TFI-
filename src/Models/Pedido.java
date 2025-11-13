@@ -6,18 +6,19 @@ import java.util.Objects;
 
 
 /**
- * Entidad que representa una persona en el sistema.
+ * Entidad que representa un pedido en el sistema.
  * Hereda de Base para obtener id y eliminado.
  *
- * Relación con Domicilio:
- * - Una Persona puede tener 0 o 1 Domicilio (relación opcional)
- * - Se relaciona mediante FK domicilio_id en la tabla personas
+ * Relación con Envío:
+ * - Un Pedido puede tener 0 o 1 Envío (relación opcional)
+ * - La relación se materializa con la FK pedidoId en la tabla envio
  *
- * Tabla BD: personas
+ * Tabla BD: pedido
  * Campos:
  * - id: INT AUTO_INCREMENT PRIMARY KEY (heredado de Base)
  * - numero: VARCHAR(20) NOT NULL
- * - cliente_nombre: VARCHAR(120) NOT NULL
+ * - fecha: DATE NOT NULL
+ * - clienteNombre: VARCHAR(120) NOT NULL
  * - total: DECIMAL(12, 2) NOT NULL
  * - estado ENUM('NUEVO', 'FACTURADO', 'ENVIADO')
  * - eliminado: BOOLEAN DEFAULT FALSE (heredado de Base)
@@ -29,7 +30,7 @@ public class Pedido extends Base {
     }
 
     public enum Estado { NUEVO, FACTURADO, ENVIADO }
-    /** Numero de Pediido. Requerido, no puede ser null ni vacío. */
+    /** Número de pedido. Requerido, no puede ser null ni vacío. */
     private String numero;
 
     /** Nombre del cliente. Requerido, no puede ser null ni vacío. */
@@ -58,8 +59,8 @@ public class Pedido extends Base {
 
     /**
      * Constructor completo para reconstruir un Pedido desde la BD.
-     * Usado por PersonaDAO al mapear ResultSet.
-     * El domicilio se asigna posteriormente con setDomicilio().
+     * Usado por PedidoDAO al mapear ResultSet.
+     * El envío se asigna posteriormente con setEnvio().
      */
     public Pedido(int id, boolean eliminado, String numero, LocalDate fecha, String clienteNombre,
                   double total, Estado estado, Envio envio) {

@@ -141,7 +141,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Inserta un domicilio dentro de una transacción existente.
+     * Inserta un envío dentro de una transacción existente.
      * NO crea nueva conexión, recibe una Connection externa.
      * NO cierra la conexión (responsabilidad del caller con TransactionManager).
      *
@@ -149,7 +149,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * - Operaciones que requieren múltiples inserts coordinados
      * - Rollback automático si alguna operación falla
      *
-     * @param envio Domicilio a insertar
+     * @param envio Envío a insertar
      * @param conn Conexión transaccional (NO se cierra en este método)
      * @throws Exception Si falla la inserción
      */
@@ -163,23 +163,17 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Actualiza un domicilio existente en la base de datos.
-     * Actualiza calle y número.
+     * Actualiza un envío existente en la base de datos.
+     * Actualiza sus campos principales.
      *
      * Validaciones:
-     * - Si rowsAffected == 0 → El domicilio no existe o ya está eliminado
+     * - Si rowsAffected == 0 → El envío no existe o ya está eliminado
      *
-     * ⚠️ IMPORTANTE: Si varias personas comparten este domicilio,
-     * la actualización los afectará a TODAS (RN-040).
-     * Ejemplo:
-     * - Domicilio ID=1 "Av. Siempreviva 742" tiene 3 personas asociadas
-     * - actualizar(domicilio con calle="Calle Nueva") cambia la dirección de las 3 personas
+     * Nota: Si existieran varios pedidos vinculados a este envío,
+     * la actualización los afectará a todos.
      *
-     * Esto es CORRECTO: permite que familias compartan la misma dirección
-     * y se actualice en un solo lugar.
-     *
-     * @param envio Domicilio con los datos actualizados (id debe ser > 0)
-     * @throws SQLException Si el domicilio no existe o hay error de BD
+     * @param envio Envío con los datos actualizados (id debe ser > 0)
+     * @throws SQLException Si el envío no existe o hay error de BD
      */
     @Override
     public void actualizar(Envio envio) throws SQLException {
@@ -190,7 +184,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
 
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
-                throw new SQLException("No se pudo actualizar el domicilio con ID: " + envio.getId());
+                throw new SQLException("No se pudo actualizar el envío con ID: " + envio.getId());
             }
         }
     }
@@ -228,17 +222,17 @@ public class EnvioDAO implements GenericDAO<Envio> {
             int rowsAffected = stmt.executeUpdate();
 
             if (rowsAffected == 0) {
-                throw new SQLException("No se encontró domicilio con ID: " + id);
+                throw new SQLException("No se encontró envío con ID: " + id);
             }
         }
     }
 
     /**
-     * Obtiene un domicilio por su ID.
-     * Solo retorna domicilios activos (eliminado=FALSE).
+     * Obtiene un envío por su ID.
+     * Solo retorna envíos activos (eliminado=FALSE).
      *
-     * @param id ID del domicilio a buscar
-     * @return Domicilio encontrado, o null si no existe o está eliminado
+     * @param id ID del envío a buscar
+     * @return Envío encontrado, o null si no existe o está eliminado
      * @throws SQLException Si hay error de BD
      */
     @Override
@@ -258,14 +252,14 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Obtiene todos los domicilios activos (eliminado=FALSE).
+     * Obtiene todos los envíos activos (eliminado=FALSE).
      *
      * Nota: Usa Statement (no PreparedStatement) porque no hay parámetros.
      *
      * Uso típico:
-     * - MenuHandler opción 7: Listar domicilios existentes para asignar a persona
+     * - MenuHandler opción 6: Listar envíos existentes
      *
-     * @return Lista de domicilios activos (puede estar vacía)
+     * @return Lista de envíos activos (puede estar vacía)
      * @throws SQLException Si hay error de BD
      */
     @Override
@@ -285,15 +279,19 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Setea los parámetros de domicilio en un PreparedStatement.
+     * Setea los parámetros del envío en un PreparedStatement.
      * Método auxiliar usado por insertar() e insertTx().
-     * <p>
-     * Parámetros seteados:
-     * 1. calle (String)
-     * 2. numero (String)
+     *
+     * Parámetros seteados (en orden):
+     * 1. tracking (String)
+     * 2. empresa (String - enum name)
+     * 3. tipo (String - enum name)
+     * 4. estado (String - enum name)
+     * 5. costo (Double)
+     * 6. fechaDespacho (Date)
      *
      * @param stmt  PreparedStatement con INSERT_SQL
-     * @param envio Domicilio con los datos a insertar
+     * @param envio Envío con los datos a insertar
      * @throws SQLException Si hay error al setear parámetros
      */
     private void setearParametrosEnvio(PreparedStatement stmt, Envio envio) throws SQLException {
@@ -309,17 +307,15 @@ public class EnvioDAO implements GenericDAO<Envio> {
 
     /**
      * Obtiene el ID autogenerado por la BD después de un INSERT.
-     * Asigna el ID generado al objeto domicilio.
+     * Asigna el ID generado al objeto envío.
      *
      * IMPORTANTE: Este método es crítico para mantener la consistencia:
-     * - Después de insertar, el objeto domicilio debe tener su ID real de la BD
-     * - PersonaServiceImpl.insertar() depende de esto para setear la FK:
-     *   1. domicilioService.insertar(domicilio) → domicilio.id se setea aquí
-     *   2. personaDAO.insertar(persona) → usa persona.getDomicilio().getId() para la FK
+     * - Después de insertar, el objeto envío debe tener su ID real de la BD
+     * - Permite usar envio.getId() inmediatamente después de insertar
      * - Necesario para operaciones transaccionales que requieren el ID generado
      *
      * @param stmt PreparedStatement que ejecutó el INSERT con RETURN_GENERATED_KEYS
-     * @param envio Objeto domicilio a actualizar con el ID generado
+     * @param envio Objeto envío a actualizar con el ID generado
      * @throws SQLException Si no se pudo obtener el ID generado (indica problema grave)
      */
     private void setGeneratedId(PreparedStatement stmt, Envio envio) throws SQLException {

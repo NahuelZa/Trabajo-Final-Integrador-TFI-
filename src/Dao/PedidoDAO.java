@@ -25,8 +25,8 @@ import java.time.LocalDate;
  */
 public class PedidoDAO implements GenericDAO<Pedido> {
     /**
-     * Query de inserción de persona.
-     * Inserta nombre, apellido, dni y FK domicilio_id.
+     * Query de inserción de pedido.
+     * Inserta numero, fecha, clienteNombre, total y estado.
      * El id es AUTO_INCREMENT y se obtiene con RETURN_GENERATED_KEYS.
      */
     private static final String INSERT_SQL = """
@@ -43,8 +43,8 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         """;
 
     /**
-     * Query de actualización de persona.
-     * Actualiza nombre, apellido, dni y FK domicilio_id por id.
+     * Query de actualización de pedido.
+     * Actualiza numero, fecha, clienteNombre, total y estado por id.
      * NO actualiza el flag eliminado (solo se modifica en soft delete).
      */
     private static final String UPDATE_SQL = """
@@ -81,13 +81,13 @@ public class PedidoDAO implements GenericDAO<Pedido> {
     """;
 
     /**
-     * Query para obtener persona por ID.
-     * LEFT JOIN con domicilios para cargar la relación de forma eager.
-     * Solo retorna personas activas (eliminado=FALSE).
+     * Query para obtener pedido por ID.
+     * LEFT JOIN con envío para cargar la relación de forma eager.
+     * Solo retorna pedidos activos (eliminado=FALSE).
      *
-     * Campos del ResultSet:
-     * - Persona: id, nombre, apellido, dni, domicilio_id
-     * - Domicilio (puede ser NULL): dom_id, calle, numero
+     * Columnas relevantes del ResultSet:
+     * - Pedido: id, numero, fecha, clienteNombre, estado, total
+     * - Envío (puede ser NULL): envio_id, tracking, empresa, tipo, costo, fechaEstimada, fechaDespacho, estado_envio
      */
     private static final String SELECT_BY_ID_SQL = """
         SELECT
@@ -111,9 +111,9 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         """;
 
     /**
-     * Query para obtener todas las personas activas.
-     * LEFT JOIN con domicilios para cargar relaciones.
-     * Filtra por eliminado=FALSE (solo personas activas).
+     * Query para obtener todos los pedidos activos.
+     * LEFT JOIN con envíos para cargar relaciones.
+     * Filtra por eliminado=FALSE (solo pedidos activos).
      */
     private static final String SELECT_ALL_SQL =  """
         SELECT
@@ -191,7 +191,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         """;
 
     /**
-     * DAO de domicilios (actualmente no usado, pero disponible para operaciones futuras).
+     * DAO de envíos (actualmente no usado, pero disponible para operaciones futuras).
      * Inyectado en el constructor por si se necesita coordinar operaciones.
      */
     private final EnvioDAO envioDAO;
@@ -477,28 +477,6 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         stmt.setString(5, pedido.getEstado().toString());
     }
 
-    /**
-     * Setea la FK domicilio_id en un PreparedStatement.
-     * Maneja correctamente el caso NULL (persona sin domicilio).
-     *
-     * Lógica:
-     * - Si domicilio != null Y domicilio.id > 0 → Setea el ID
-     * - Si domicilio == null O domicilio.id <= 0 → Setea NULL
-     *
-     * Importante: El tipo Types.INTEGER es necesario para setNull() en JDBC.
-     *
-     * @param stmt PreparedStatement
-     * @param parameterIndex Índice del parámetro (1-based)
-     * @param envio Domicilio asociado (puede ser null)
-     * @throws SQLException Si hay error al setear el parámetro
-     */
-    private void setDomicilioId(PreparedStatement stmt, int parameterIndex, Envio envio) throws SQLException {
-        if (envio != null && envio.getId() > 0) {
-            stmt.setInt(parameterIndex, envio.getId());
-        } else {
-            stmt.setNull(parameterIndex, Types.INTEGER);
-        }
-    }
 
     /**
      * Obtiene el ID autogenerado por la BD después de un INSERT.

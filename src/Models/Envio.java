@@ -3,21 +3,24 @@ import java.util.Objects;
 import java.time.LocalDate;
 
 /**
- * Entidad que representa un envio en el sistema.
+ * Entidad que representa un envío en el sistema.
  * Hereda de Base para obtener id y eliminado.
  *
- * Relación con Persona:
+ * Relación con Pedido:
  * - Un Pedido puede tener 0 o 1 Envíos
- * - Un Envío estará asociado solo a un Pedido (Unidireccional 1->1)
+ * - Un Envío estará asociado solo a un Pedido (relación 1↔1)
  *
- * Tabla BD: envios
+ * Tabla BD: envio
  * Campos:
  * - id: INT AUTO_INCREMENT PRIMARY KEY (heredado de Base)
- * - numero: VARCHAR(20) NOT NULL
- * - fecha: DATE NOT NULL
- * - cliente_nombre VARCHAR(120) NOT NULL
- * - total DECIMAL(12, 2) NOT NULL
- * - estado ENUM('NUEVO', 'FACTURADO', 'ENVIADO') NOT NUL
+ * - tracking: VARCHAR(50) NOT NULL
+ * - costo: DECIMAL(12, 2) NOT NULL
+ * - fechaDespacho: DATE NOT NULL
+ * - fechaEstimada: DATE NULL
+ * - tipo ENUM('ESTANDAR','EXPRESS') NOT NULL
+ * - empresa ENUM('ANDREANI','OCA','CORREO_ARG') NOT NULL
+ * - estado ENUM('EN_PREPARACION','EN_TRANSITO','ENTREGADO') NOT NULL
+ * - pedidoId: INT NULL (FK a pedido.id)
  * - eliminado: BOOLEAN DEFAULT FALSE (heredado de Base)
  */
 public class Envio extends Base {
@@ -71,19 +74,19 @@ public class Envio extends Base {
 
 
     /**
-     * Constructor completo para reconstruir un Domicilio desde la base de datos.
-     * Usado por PersonaDAO y DomicilioDAO al mapear ResultSet.
+     * Constructor completo para reconstruir un Envío desde la base de datos.
+     * Usado por DAOs al mapear ResultSet.
      *
-     * @param id            ID del domicilio en la BD
+     * @param id            ID del envío en la BD
      * @param eliminado     El registro se encuentra eliminado o no
      * @param tracking      Tracking Number del envío
      * @param empresa       Nombre de la empresa
      * @param tipo          Tipo de Envio
      * @param costo         Costo del envío
-     * @param fechaDespacho Fecha que se despachó el  envío
+     * @param fechaDespacho Fecha que se despachó el envío
      * @param fechaEstimada Fecha en que se estima arribará el envío
      * @param estado        Estado actual del envío
-     * @param pedido
+     * @param pedido        Pedido asociado (puede ser null)
      */
     public Envio(int id, boolean eliminado, String tracking, Empresa empresa, Tipo tipo, Double costo,
                  LocalDate fechaDespacho, LocalDate fechaEstimada, Estado estado, Pedido pedido) {
@@ -99,7 +102,7 @@ public class Envio extends Base {
     }
 
     /**
-     * Constructor por defecto para crear un domicilio nuevo.
+     * Constructor por defecto para crear un envío nuevo.
      * El ID será asignado por la BD al insertar.
      * El flag eliminado se inicializa en false por Base.
      */
@@ -116,9 +119,9 @@ public class Envio extends Base {
     }
 
     /**
-     * Establece el nombre de la empresa.
+     * Establece la empresa de envío.
      *
-     * @param empresa Nuevo nombre de la calle
+     * @param empresa Nueva empresa
      */
     public void setEmpresa(Empresa empresa) {
         this.empresa = empresa;
@@ -210,12 +213,12 @@ public class Envio extends Base {
     }
 
     /**
-     * Compara dos envios por igualdad SEMÁNTICA.
-     * Dos domicilios son iguales si tienen el mismo tracking number y la misma empresa.
-     * Nota: NO se compara por ID, permitiendo detectar direcciones duplicadas.
+     * Compara dos envíos por igualdad SEMÁNTICA.
+     * Dos envíos son iguales si tienen el mismo tracking y la misma empresa.
+     * Nota: NO se compara por ID.
      *
      * @param o Objeto a comparar
-     * @return true si los domicilios tienen la misma calle y número
+     * @return true si ambos envíos tienen mismo tracking y empresa
      */
     @Override
     public boolean equals(Object o) {
