@@ -53,11 +53,11 @@ public class AppMenu {
      * 4. Setea running=true para iniciar el loop
      *
      * Patrón de inyección de dependencias (DI) manual:
-     * - DomicilioDAO (sin dependencias)
-     * - PersonaDAO (depende de DomicilioDAO)
-     * - DomicilioServiceImpl (depende de DomicilioDAO)
-     * - PersonaServiceImpl (depende de PersonaDAO y DomicilioServiceImpl)
-     * - MenuHandler (depende de Scanner y PersonaServiceImpl)
+     * - EnvioDAO (sin dependencias)
+     * - PedidoDAO (depende de EnvioDAO para reconstruir relación Envío)
+     * - EnvioServiceImpl (depende de EnvioDAO)
+     * - PedidosServiceImpl (depende de PedidoDAO y EnvioServiceImpl)
+     * - MenuHandler (depende de Scanner, PedidosServiceImpl y EnvioServiceImpl)
      *
      * Esta inicialización garantiza que todas las dependencias estén correctamente conectadas.
      */
@@ -178,40 +178,40 @@ public class AppMenu {
 
     /**
      * Factory method que crea la cadena de dependencias de servicios.
-     * Implementa inyección de dependencias manual.
+     * Implementa inyección de dependencias manual para el dominio Pedido/Envio.
      *
      * Orden de creación (bottom-up desde la capa más baja):
-     * 1. DomicilioDAO: Sin dependencias, acceso directo a BD
-     * 2. PersonaDAO: Depende de DomicilioDAO (inyectado en constructor)
-     * 3. DomicilioServiceImpl: Depende de DomicilioDAO
-     * 4. PersonaServiceImpl: Depende de PersonaDAO y DomicilioServiceImpl
+     * 1. EnvioDAO: Sin dependencias, acceso directo a BD
+     * 2. PedidoDAO: Depende de EnvioDAO (para reconstruir relación Envío vía LEFT JOIN)
+     * 3. EnvioServiceImpl: Depende de EnvioDAO
+     * 4. PedidosServiceImpl: Depende de PedidoDAO y EnvioServiceImpl
      *
      * Arquitectura resultante (4 capas):
      * Main (AppMenu, MenuHandler)
      *   ↓
-     * Service (PersonaServiceImpl, DomicilioServiceImpl)
+     * Service (PedidosServiceImpl, EnvioServiceImpl)
      *   ↓
-     * DAO (PersonaDAO, DomicilioDAO)
+     * DAO (PedidoDAO, EnvioDAO)
      *   ↓
-     * Models (Persona, Domicilio, Base)
+     * Models (Pedido, Envio, Base)
      *
-     * ¿Por qué PersonaDAO necesita DomicilioDAO?
-     * - Actualmente NO lo usa (inyección preparada para futuras operaciones)
-     * - Podría usarse para operaciones transaccionales coordinadas
+     * ¿Por qué PedidoDAO necesita EnvioDAO?
+     * - Para mapear correctamente la relación Pedido → Envío cuando existe
+     * - Preparado para operaciones coordinadas entre ambas entidades
      *
-     * ¿Por qué PersonaService necesita DomicilioService?
-     * - Para insertar/actualizar domicilios al crear/actualizar personas
-     * - Para eliminar domicilios de forma segura (eliminarDomicilioDePersona)
+     * ¿Por qué PedidosService necesita EnvioService?
+     * - Para insertar/actualizar envíos al crear/actualizar pedidos
+     * - Para eliminar envíos de forma segura (eliminarEnvioDePedido)
      *
      * Patrón: Factory Method para construcción de dependencias
      *
-     * @return PersonaServiceImpl completamente inicializado con todas sus dependencias
+     * @return PedidosServiceImpl completamente inicializado con todas sus dependencias
      */
     private PedidosServiceImpl createPedidosService() {
         EnvioDAO envioDAO = new EnvioDAO();
         PedidoDAO pedidoDAO = new PedidoDAO(envioDAO);
-        EnvioServiceImpl domicilioService = new EnvioServiceImpl(envioDAO);
-        return new PedidosServiceImpl(pedidoDAO, domicilioService);
+        EnvioServiceImpl enviosService = new EnvioServiceImpl(envioDAO);
+        return new PedidosServiceImpl(pedidoDAO, enviosService);
     }
 
 
