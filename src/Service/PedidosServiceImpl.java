@@ -7,30 +7,30 @@ import Dao.PedidoDAO;
 
 /**
  * Implementación del servicio de negocio para la entidad Pedido.
- * Capa intermedia entre la UI y el DAO que aplica validaciones de negocio complejas.
+ * Capa intermedia entre la UI y el DAO que aplica validaciones de negocio.
  *
  * Responsabilidades:
- * - Validar datos de pedido ANTES de persistir (RN-035: número, cliente, total obligatorios)
- * - Garantizar unicidad del número de pedido en el sistema (RN-001)
- * - COORDINAR operaciones entre Persona y Domicilio (transaccionales)
- * - Proporcionar métodos de búsqueda especializados (por DNI, nombre/apellido)
- * - Implementar eliminación SEGURA de domicilios (evita FKs huérfanas)
+ * - Validar datos del pedido ANTES de persistir (RN-035: número, cliente, total obligatorios)
+ * - Garantizar unicidad del número de pedido (RN-001)
+ * - Coordinar operaciones con el Envío cuando corresponda
+ * - Proporcionar métodos de búsqueda (por número y por nombre de cliente)
+ * - Implementar eliminación segura del envío asociado cuando se solicita
  *
  * Patrón: Service Layer con inyección de dependencias y coordinación de servicios
  */
 public class PedidosServiceImpl implements GenericService<Pedido> {
     /**
-     * DAO para acceso a datos de personas.
+     * DAO para acceso a datos de pedidos.
      * Inyectado en el constructor (Dependency Injection).
      */
     private final PedidoDAO pedidoDAO;
 
     /**
-     * Servicio de domicilios para coordinar operaciones transaccionales.
-     * IMPORTANTE: PersonaServiceImpl necesita DomicilioService porque:
-     * - Una persona puede crear/actualizar su domicilio al insertarse/actualizarse
-     * - El servicio coordina la secuencia: insertar domicilio → insertar persona
-     * - Implementa eliminación segura: actualizar FK persona → eliminar domicilio
+     * Servicio de envíos para coordinar operaciones transaccionales.
+     * IMPORTANTE: PedidosServiceImpl puede necesitar EnvioService porque:
+     * - Un pedido puede crear/actualizar su envío al insertarse/actualizarse
+     * - El servicio coordina la secuencia: insertar/actualizar envío cuando corresponde
+     * - Implementa eliminación segura del envío asociado al pedido
      */
     private final EnvioServiceImpl envioServiceImpl;
 
@@ -38,8 +38,8 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
      * Constructor con inyección de dependencias.
      * Valida que ambas dependencias no sean null (fail-fast).
      *
-     * @param pedidoDAO DAO de personas (normalmente PersonaDAO)
-     * @param envioServiceImpl Servicio de domicilios para operaciones coordinadas
+     * @param pedidoDAO DAO de pedidos
+     * @param envioServiceImpl Servicio de envíos para operaciones coordinadas
      * @throws IllegalArgumentException si alguna dependencia es null
      */
     public PedidosServiceImpl(PedidoDAO pedidoDAO, EnvioServiceImpl envioServiceImpl) {
@@ -54,34 +54,31 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Inserta una nueva persona en la base de datos.
+     * Inserta un nuevo pedido en la base de datos.
      *
-     * Flujo transaccional complejo:
-     * 1. Valida que los datos de la persona sean correctos (nombre, apellido, DNI)
-     * 2. Valida que el DNI sea único en el sistema (RN-001)
-     * 3. Si la persona tiene domicilio asociado:
-     *    a. Si domicilio.id == 0 → Es nuevo, lo inserta en la BD
-     *    b. Si domicilio.id > 0 → Ya existe, lo actualiza
-     * 4. Inserta la persona con la FK domicilio_id correcta
+     * Flujo:
+     * 1. Valida que los datos del pedido sean correctos (número, cliente, total)
+     * 2. Valida que el número de pedido sea único (RN-001)
+     * 3. Si el pedido tiene envío asociado:
+     *    a. Si envio.id == 0 → Es nuevo, lo inserta en la BD (para obtener ID)
+     *    b. Si envio.id > 0 → Ya existe, lo actualiza
+     * 4. Inserta el pedido con la relación de envío correspondiente
      *
-     * IMPORTANTE: La coordinación con DomicilioService permite que el domicilio
-     * obtenga su ID autogenerado ANTES de insertar la persona (necesario para la FK).
-     *
-     * @param pedido Persona a insertar (id será ignorado y regenerado)
-     * @throws Exception Si la validación falla, el DNI está duplicado, o hay error de BD
+     * @param pedido Pedido a insertar (id será ignorado y regenerado)
+     * @throws Exception Si la validación falla, el número está duplicado, o hay error de BD
      */
     @Override
     public void insertar(Pedido pedido) throws Exception {
         validarPedido(pedido);
         validateNumeroUnique(pedido.getNumero(), null);
 
-        // Coordinación con DomicilioService (transaccional)
+        // Coordinación con EnvioService (si hay envío asociado)
         if (pedido.getEnvio() != null) {
             if (pedido.getEnvio().getId() == 0) {
-                // Domicilio nuevo: insertar primero para obtener ID autogenerado
+                // Envío nuevo: insertar primero para obtener ID autogenerado
                 envioServiceImpl.insertar(pedido.getEnvio());
             } else {
-                // Domicilio existente: actualizar datos
+                // Envío existente: actualizar datos
                 envioServiceImpl.actualizar(pedido.getEnvio());
             }
         }
@@ -90,20 +87,15 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Actualiza una persona existente en la base de datos.
+     * Actualiza un pedido existente en la base de datos.
      *
      * Validaciones:
-     * - La persona debe tener datos válidos (nombre, apellido, DNI)
-     * - El ID debe ser > 0 (debe ser una persona ya persistida)
-     * - El DNI debe ser único (RN-001), excepto para la misma persona
+     * - El pedido debe tener datos válidos (número, cliente, total)
+     * - El ID debe ser > 0 (pedido ya persistido)
+     * - El número de pedido debe ser único (RN-001), excepto para el mismo pedido
      *
-     * IMPORTANTE: Esta operación NO coordina con DomicilioService.
-     * Para cambiar el domicilio de una persona, usar MenuHandler que:
-     * - Asignar nuevo domicilio: opción 6 (crea nuevo) o 7 (usa existente)
-     * - Actualizar domicilio: opción 9 (modifica domicilio actual)
-     *
-     * @param pedido Persona con los datos actualizados
-     * @throws Exception Si la validación falla, el DNI está duplicado, o la persona no existe
+     * @param pedido Pedido con los datos actualizados
+     * @throws Exception Si la validación falla, el número está duplicado o el pedido no existe
      */
     @Override
     public void actualizar(Pedido pedido) throws Exception {
@@ -116,15 +108,14 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Elimina lógicamente una persona (soft delete).
-     * Marca la persona como eliminado=TRUE sin borrarla físicamente.
+     * Elimina lógicamente un pedido (soft delete).
+     * Marca el pedido como eliminado=TRUE sin borrarlo físicamente.
      *
-     * ⚠️ IMPORTANTE: Este método NO elimina el domicilio asociado (RN-037).
-     * Si la persona tiene un domicilio, este quedará activo en la BD.
-     * Esto es correcto porque múltiples personas pueden compartir un domicilio.
+     * Nota: Este método NO elimina el envío asociado automáticamente.
+     * Si se desea eliminar también el envío, usar eliminarEnvioDePedido().
      *
-     * @param id ID de la persona a eliminar
-     * @throws Exception Si id <= 0 o no existe la persona
+     * @param id ID del pedido a eliminar
+     * @throws Exception Si id <= 0 o no existe el pedido
      */
     @Override
     public void eliminar(int id) throws Exception {
@@ -135,11 +126,11 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Obtiene una persona por su ID.
-     * Incluye el domicilio asociado mediante LEFT JOIN (PersonaDAO).
+     * Obtiene un pedido por su ID.
+     * Incluye el envío asociado si existe (LEFT JOIN desde PedidoDAO).
      *
-     * @param id ID de la persona a buscar
-     * @return Persona encontrada (con su domicilio si tiene), o null si no existe o está eliminada
+     * @param id ID del pedido a buscar
+     * @return Pedido encontrado (con su envío si tiene), o null si no existe o está eliminado
      * @throws Exception Si id <= 0 o hay error de BD
      */
     @Override
@@ -152,10 +143,10 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Obtiene todas las personas activas (eliminado=FALSE).
-     * Incluye sus domicilios mediante LEFT JOIN (PersonaDAO).
+     * Obtiene todos los pedidos activos (eliminado=FALSE).
+     * Incluye sus envíos mediante LEFT JOIN (PedidoDAO) si existen.
      *
-     * @return Lista de personas activas con sus domicilios (puede estar vacía)
+     * @return Lista de pedidos activos con su envío (si tienen) — puede estar vacía
      * @throws Exception Si hay error de BD
      */
     @Override
@@ -164,26 +155,23 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Expone el servicio de domicilios para que MenuHandler pueda usarlo.
-     * Necesario para operaciones de menú que trabajan directamente con domicilios.
+     * Expone el servicio de envíos para que MenuHandler pueda usarlo.
+     * Necesario para operaciones de menú que trabajan directamente con envíos.
      *
-     * @return Instancia de DomicilioServiceImpl inyectada en este servicio
+     * @return Instancia de EnvioServiceImpl inyectada en este servicio
      */
     public EnvioServiceImpl getEnvioService() {
         return this.envioServiceImpl;
     }
 
     /**
-     * Busca personas por nombre o apellido (búsqueda flexible con LIKE).
-     * Usa PersonaDAO.buscarPorNombreApellido() que realiza:
-     * - LIKE %filtro% en nombre O apellido
-     * - Insensible a mayúsculas/minúsculas (LOWER())
-     * - Solo personas activas (eliminado=FALSE)
+     * Busca pedidos por nombre de cliente (búsqueda flexible con LIKE).
+     * Usa PedidoDAO.buscarPorNombreCliente() con patrón LIKE '%filtro%'.
      *
-     * Uso típico: El usuario ingresa "juan" y encuentra "Juan Pérez", "María Juana", etc.
+     * Ejemplo: filtro = "ana" encuentra "Ana", "Anastasia", "Mariana".
      *
      * @param filtro Texto a buscar (no puede estar vacío)
-     * @return Lista de personas que coinciden con el filtro (puede estar vacía)
+     * @return Lista de pedidos que coinciden con el filtro (puede estar vacía)
      * @throws IllegalArgumentException Si el filtro está vacío
      * @throws Exception Si hay error de BD
      */
@@ -215,25 +203,19 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Elimina un domicilio de forma SEGURA actualizando primero la FK de la persona.
-     * Este es el método RECOMENDADO para eliminar domicilios (RN-029 solucionado).
+     * Elimina un envío asociado a un pedido de forma SEGURA.
+     * Actualiza primero la relación en el pedido y luego elimina el envío.
      *
-     * Flujo transaccional SEGURO:
-     * 1. Obtiene la persona por ID y valida que exista
-     * 2. Verifica que el domicilio pertenezca a esa persona (evita eliminar domicilio ajeno)
-     * 3. Desasocia el domicilio de la persona (persona.domicilio = null)
-     * 4. Actualiza la persona en BD (domicilio_id = NULL)
-     * 5. Elimina el domicilio (ahora no hay FKs apuntando a él)
+     * Flujo transaccional seguro:
+     * 1. Obtiene el pedido por ID y valida que exista
+     * 2. Verifica que el envío pertenezca a ese pedido
+     * 3. Desasocia el envío del pedido (pedido.envio = null)
+     * 4. Actualiza el pedido en BD (quita la relación)
+     * 5. Elimina el envío (ya sin referencias)
      *
-     * DIFERENCIA con DomicilioService.eliminar():
-     * - DomicilioService.eliminar(): Elimina directamente (PELIGROSO, puede dejar FKs huérfanas)
-     * - Este método: Primero actualiza FK, luego elimina (SEGURO)
-     *
-     * Usado en MenuHandler opción 10: "Eliminar domicilio de una persona"
-     *
-     * @param pedidoId ID de la persona dueña del domicilio
-     * @param envioId ID del domicilio a eliminar
-     * @throws IllegalArgumentException Si los IDs son <= 0, la persona no existe, o el domicilio no pertenece a la persona
+     * @param pedidoId ID del pedido dueño del envío
+     * @param envioId ID del envío a eliminar
+     * @throws IllegalArgumentException Si los IDs son <= 0, el pedido no existe o el envío no pertenece al pedido
      * @throws Exception Si hay error de BD
      */
     public void eliminarEnvioDePedido(int pedidoId, int envioId) throws Exception {
@@ -257,13 +239,14 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Valida que una persona tenga datos correctos.
+     * Valida que un pedido tenga datos correctos.
      *
      * Reglas de negocio aplicadas:
-     * - RN-035: Nombre, apellido y DNI son obligatorios
-     * - RN-036: Se verifica trim() para evitar strings solo con espacios
+     * - RN-035: Número, nombre de cliente y total son obligatorios
+     * - Se verifica trim() para evitar strings solo con espacios
+     * - El total no puede ser negativo
      *
-     * @param pedido Persona a validar
+     * @param pedido Pedido a validar
      * @throws IllegalArgumentException Si alguna validación falla
      */
     private void validarPedido(Pedido pedido) {
@@ -282,36 +265,36 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Valida que un DNI sea único en el sistema.
-     * Implementa la regla de negocio RN-001: "El DNI debe ser único".
+     * Valida que el número de pedido sea único en el sistema.
+     * Implementa la regla de negocio RN-001: "El número de pedido debe ser único".
      *
      * Lógica:
-     * 1. Busca si existe una persona con ese DNI en la BD
-     * 2. Si NO existe → OK, el DNI es único
-     * 3. Si existe → Verifica si es la misma persona que estamos actualizando:
-     *    a. Si personaId == null (INSERT) → Error, DNI duplicado
-     *    b. Si personaId != null (UPDATE) y existente.id == personaId → OK, es la misma persona
-     *    c. Si personaId != null (UPDATE) y existente.id != personaId → Error, DNI duplicado
+     * 1. Busca si existe un pedido con ese número en la BD
+     * 2. Si NO existe → OK, el número es único
+     * 3. Si existe → Verifica si es el mismo pedido que estamos actualizando:
+     *    a. Si pedidoId == null (INSERT) → Error, número duplicado
+     *    b. Si pedidoId != null (UPDATE) y existente.id == pedidoId → OK, es el mismo pedido
+     *    c. Si pedidoId != null (UPDATE) y existente.id != pedidoId → Error, número duplicado
      *
-     * Ejemplo de uso correcto en UPDATE:
-     * - Persona ID=5 con DNI="12345678" quiere actualizar su nombre
-     * - validateDniUnique("12345678", 5) → Encuentra persona con DNI="12345678" (ID=5)
-     * - Como existente.id (5) == personaId (5) → OK, la persona se está actualizando a sí misma
+     * Ejemplo de uso en UPDATE:
+     * - Pedido ID=5 con número="A-100" quiere actualizar otros datos
+     * - validateNumeroUnique("A-100", 5) → Encuentra pedido con número="A-100" (ID=5)
+     * - Como existente.id (5) == pedidoId (5) → OK, se está actualizando a sí mismo
      *
-     * @param numeroEnvio DNI a validar
-     * @param pedidoId ID de la persona (null para INSERT, != null para UPDATE)
-     * @throws IllegalArgumentException Si el DNI ya existe y pertenece a otra persona
+     * @param numeroPedido Número de pedido a validar
+     * @param pedidoId ID del pedido (null para INSERT, != null para UPDATE)
+     * @throws IllegalArgumentException Si el número ya existe y pertenece a otro pedido
      * @throws Exception Si hay error de BD al buscar
      */
-    private void validateNumeroUnique(String numeroEnvio, Integer pedidoId) throws Exception {
-        Pedido existente = pedidoDAO.buscarPorNumeroDePedido(numeroEnvio);
+    private void validateNumeroUnique(String numeroPedido, Integer pedidoId) throws Exception {
+        Pedido existente = pedidoDAO.buscarPorNumeroDePedido(numeroPedido);
         if (existente != null) {
-            // Existe una persona con ese DNI
+            // Ya existe un pedido con ese número
             if (pedidoId == null || existente.getId() != pedidoId) {
-                // Es INSERT (personaId == null) o es UPDATE pero el DNI pertenece a otra persona
-                throw new IllegalArgumentException("Ya existe un pedido con el número: " + numeroEnvio);
+                // Es INSERT o UPDATE pero el número pertenece a otro pedido
+                throw new IllegalArgumentException("Ya existe un pedido con el número: " + numeroPedido);
             }
-            // Si llegamos aquí: es UPDATE y el DNI pertenece a la misma persona → OK
+            // Si llegamos aquí: es UPDATE y el número pertenece al mismo pedido → OK
         }
     }
 }
