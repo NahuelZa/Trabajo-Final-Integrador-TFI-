@@ -7,14 +7,14 @@ import Dao.PedidoDAO;
 
 /**
  * Implementación del servicio de negocio para la entidad Pedido.
- * Capa intermedia entre la UI y el DAO que aplica validaciones de negocio complejas.
+ * Capa intermedia entre la UI y el DAO que aplica validaciones de negocio.
  *
  * Responsabilidades:
- * - Validar datos de pedido ANTES de persistir (RN-035: eliminado, id, numero, fecha, clienteNombre, estado, total obligatorios)
- * - Garantizar unicidad del ID en el sistema (RN-001)
- * - COORDINAR operaciones entre Pedido y Envio (transaccionales)
- * - Proporcionar métodos de búsqueda especializados (por ID, clienteNombre)
- * - Implementar eliminación SEGURA de envios (evita FKs huérfanas)
+ * - Validar datos del pedido ANTES de persistir (RN-035: número, cliente, total obligatorios)
+ * - Garantizar unicidad del número de pedido (RN-001)
+ * - Coordinar operaciones con el Envío cuando corresponda
+ * - Proporcionar métodos de búsqueda (por número y por nombre de cliente)
+ * - Implementar eliminación segura del envío asociado cuando se solicita
  *
  * Patrón: Service Layer con inyección de dependencias y coordinación de servicios
  */
@@ -93,9 +93,9 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
      * Actualiza un pedido existente en la base de datos.
      *
      * Validaciones:
-     * - El pedido debe tener datos válidos (clienteNombre, ID)
-     * - El ID debe ser > 0 (debe ser un pedido ya persistido)
-     * - El ID debe ser único (RN-001), excepto para el misma pedido
+     * - El pedido debe tener datos válidos (número, cliente, total)
+     * - El ID debe ser > 0 (pedido ya persistido)
+     * - El número de pedido debe ser único (RN-001), excepto para el mismo pedido
      *
      * IMPORTANTE: Esta operación NO coordina con EnvioService.
      * Para cambiar el envio de un pedido, usar MenuHandler que:
@@ -117,7 +117,7 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
 
     /**
      * Elimina lógicamente un pedido (soft delete).
-     * Marca el pedido como eliminado=TRUE sin borrarla físicamente.
+     * Marca el pedido como eliminado=TRUE sin borrarlo físicamente.
      *
      * ⚠️ IMPORTANTE: Este método NO elimina el envio asociado (RN-037).
      * Si el pedido tiene un envio, este quedará activo en la BD.
@@ -147,6 +147,7 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
         }
+
         return pedidoDAO.getById(id);
     }
 
@@ -179,7 +180,7 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
      * - Insensible a mayúsculas/minúsculas (LOWER())
      * - Solo pedidos activos (eliminado=FALSE)
      *
-     * Uso típico: El usuario ingresa "juan" y encuentra "Juan Pérez", "María Juana", etc.
+     * Ejemplo: filtro = "ana" encuentra "Ana", "Anastasia", "Mariana".
      *
      * @param filtro Texto a buscar (no puede estar vacío)
      * @return Lista de pedido que coinciden con el filtro (puede estar vacía)
@@ -194,23 +195,23 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Busca un pedido por ID exacto.
-     * Usa PedidoDAO.buscarPorId() que realiza búsqueda exacta (=).
+     * Busca un pedido por número exacto.
+     * Usa PedidoDAO.buscarPorNumeroDePedido() que realiza búsqueda exacta (=).
      *
      * Uso típico:
-     * - Validar unicidad del ID (validateIdUnique)
-     * - Buscar pedido específico desde el menú (opción 4)
+     * - Validar unicidad del número de pedido (validateNumeroUnique)
+     * - Buscar pedido específico desde el menú
      *
-     * @param id ID exacto a buscar (no puede estar vacío)
-     * @return Pedido con ese ID, o null si no existe o está eliminado
-     * @throws IllegalArgumentException Si el ID está vacío
+     * @param numeroPedido Número de pedido exacto a buscar (no puede estar vacío)
+     * @return Pedido con ese número, o null si no existe o está eliminado
+     * @throws IllegalArgumentException Si el número de pedido está vacío
      * @throws Exception Si hay error de BD
      */
-    public Pedido buscarPorDni(String dni) throws Exception {
-        if (dni == null || dni.trim().isEmpty()) {
-            throw new IllegalArgumentException("El ID no puede estar vacío");
+    public Pedido buscarPorNumeroDePedido(String numeroPedido) throws Exception {
+        if (numeroPedido == null || numeroPedido.trim().isEmpty()) {
+            throw new IllegalArgumentException("El número de pedido no puede estar vacío");
         }
-        return pedidoDAO.buscarPorNumeroDePedido(dni);
+        return pedidoDAO.buscarPorNumeroDePedido(numeroPedido);
     }
 
     /**
@@ -259,8 +260,9 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
      * Valida que un pedido tenga datos correctos.
      *
      * Reglas de negocio aplicadas:
-     * - RN-035: ID y clienteNombre son obligatorios
-     * - RN-036: Se verifica trim() para evitar strings solo con espacios
+     * - RN-035: Número, nombre de cliente y total son obligatorios
+     * - Se verifica trim() para evitar strings solo con espacios
+     * - El total no puede ser negativo
      *
      * @param pedido Pedido a validar
      * @throws IllegalArgumentException Si alguna validación falla
@@ -281,36 +283,36 @@ public class PedidosServiceImpl implements GenericService<Pedido> {
     }
 
     /**
-     * Valida que un ID sea único en el sistema.
-     * Implementa la regla de negocio RN-001: "El ID debe ser único".
+     * Valida que el número de pedido sea único en el sistema.
+     * Implementa la regla de negocio RN-001: "El número de pedido debe ser único".
      *
      * Lógica:
-     * 1. Busca si existe un pedido con ese ID en la BD
-     * 2. Si NO existe → OK, el ID es único
-     * 3. Si existe → Verifica si es el misma pedido que estamos actualizando:
-     *    a. Si pedidoId == null (INSERT) → Error, ID duplicado
+     * 1. Busca si existe un pedido con ese número en la BD
+     * 2. Si NO existe → OK, el número es único
+     * 3. Si existe → Verifica si es el mismo pedido que estamos actualizando:
+     *    a. Si pedidoId == null (INSERT) → Error, número duplicado
      *    b. Si pedidoId != null (UPDATE) y existente.id == pedidoId → OK, es el mismo pedido
-     *    c. Si pedidoId != null (UPDATE) y existente.id != pedidoId → Error, ID duplicado
+     *    c. Si pedidoId != null (UPDATE) y existente.id != pedidoId → Error, número duplicado
      *
-     * Ejemplo de uso correcto en UPDATE:
-     * - Persona ID=5 con DNI="12345678" quiere actualizar su nombre
-     * - validateDniUnique("12345678", 5) → Encuentra persona con DNI="12345678" (ID=5)
-     * - Como existente.id (5) == personaId (5) → OK, la persona se está actualizando a sí misma
+     * Ejemplo de uso en UPDATE:
+     * - Pedido ID=5 con número="A-100" quiere actualizar otros datos
+     * - validateNumeroUnique("A-100", 5) → Encuentra pedido con número="A-100" (ID=5)
+     * - Como existente.id (5) == pedidoId (5) → OK, se está actualizando a sí mismo
      *
-     * @param numeroEnvio DNI a validar
-     * @param pedidoId ID de la persona (null para INSERT, != null para UPDATE)
-     * @throws IllegalArgumentException Si el DNI ya existe y pertenece a otra persona
+     * @param numeroPedido Número de pedido a validar
+     * @param pedidoId ID del pedido (null para INSERT, != null para UPDATE)
+     * @throws IllegalArgumentException Si el número ya existe y pertenece a otro pedido
      * @throws Exception Si hay error de BD al buscar
      */
-    private void validateNumeroUnique(String numeroEnvio, Integer pedidoId) throws Exception {
-        Pedido existente = pedidoDAO.buscarPorNumeroDePedido(numeroEnvio);
+    private void validateNumeroUnique(String numeroPedido, Integer pedidoId) throws Exception {
+        Pedido existente = pedidoDAO.buscarPorNumeroDePedido(numeroPedido);
         if (existente != null) {
-            // Existe una persona con ese DNI
+            // Ya existe un pedido con ese número
             if (pedidoId == null || existente.getId() != pedidoId) {
-                // Es INSERT (personaId == null) o es UPDATE pero el DNI pertenece a otra persona
-                throw new IllegalArgumentException("Ya existe una persona con el DNI: " + numeroEnvio);
+                // Es INSERT o UPDATE pero el número pertenece a otro pedido
+                throw new IllegalArgumentException("Ya existe un pedido con el número: " + numeroPedido);
             }
-            // Si llegamos aquí: es UPDATE y el DNI pertenece a la misma persona → OK
+            // Si llegamos aquí: es UPDATE y el número pertenece al mismo pedido → OK
         }
     }
 }

@@ -8,8 +8,8 @@ import Models.Envio;
 import java.time.LocalDate;
 
 /**
- * Data Access Object para la entidad Envio.
- * Gestiona todas las operaciones de persistencia de Envio en la base de datos.
+ * Data Access Object para la entidad Envío.
+ * Gestiona todas las operaciones de persistencia de envíos en la base de datos.
  *
  * Características:
  * - Implementa GenericDAO<Envio> para operaciones CRUD estándar
@@ -18,8 +18,8 @@ import java.time.LocalDate;
  * - NO maneja relaciones (Envio es entidad independiente)
  * - Soporta transacciones mediante insertTx() (recibe Connection externa)
  *
- * Diferencias con EnvioDAO:
- * - Más simple: NO tiene LEFT JOINs (Envio no tiene relaciones cargadas)
+ * Diferencias con otros DAO:
+ * - Más simple: NO tiene LEFT JOINs (Envío no tiene relaciones cargadas aquí)
  * - NO tiene búsquedas especializadas (solo CRUD básico)
  * - Todas las queries filtran por eliminado=FALSE (soft delete)
  *
@@ -52,31 +52,43 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * Actualiza tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa y estado por id.
      * NO actualiza el flag eliminado (solo se modifica en soft delete).
      *
-     * ⚠️ IMPORTANTE: Si varios Pedidos comparten este Envio,
-     * la actualización los afectará a TODAS (RN-040).
+     * Nota: si hubiera varios pedidos vinculados a un mismo envío, la actualización impactará a todos.
      */
-    private static final String UPDATE_SQL = """
+
+
+     private static final String UPDATE_SQL = """
         UPDATE
             envio
         SET
-            tracking = ?,
-            costo = ?,
-            fechaDespacho = ?,
-            fechaEstimada = ?,
-            tipo = ?,
-            empresa = ?
-            estado = ?
+           tracking = ?,
+           empresa = ?,  
+           tipo = ?, 
+           estado = ? , 
+           costo = ?,
+           fechaDespacho = ?                                  
+                                                                                     
         WHERE id = ?
     """;
+
+     private static final String UPDATE_SQL_ELIMINADO = """
+        UPDATE
+            envio
+        SET
+           eliminado = FALSE                                 
+                                                                                     
+        WHERE id = ?
+    """;
+
+      /**
+              **/
 
     /**
      * Query de soft delete.
      * Marca eliminado=TRUE sin borrar físicamente la fila.
      * Preserva integridad referencial y datos históricos.
      *
-     * ⚠️ PELIGRO: Este método NO verifica si hay Pedidos asociados.
-     * Puede dejar FKs huérfanas (pedido.envio_id apuntando a envio eliminado).
-     * ALTERNATIVA SEGURA: PedidoServiceImpl.eliminarEnvioDePedido()
+     * Nota: Este método no verifica si hay pedidos asociados al envío.
+     * Considere desasociar el envío de los pedidos antes de eliminarlo desde el servicio correspondiente.
      */
     private static final String DELETE_SQL = """
         UPDATE
@@ -86,9 +98,8 @@ public class EnvioDAO implements GenericDAO<Envio> {
     """;
 
     /**
-     * Query para obtener Envio por ID.
-     * Solo retorna Envios activos (eliminado=FALSE).
-     * SELECT * es aceptable aquí porque Envio tiene solo 4 columnas.
+     * Query para obtener envío por ID.
+     * Solo retorna envíos activos (eliminado=FALSE).
      */
     private static final String SELECT_BY_ID_SQL = """
         SELECT
@@ -98,10 +109,16 @@ public class EnvioDAO implements GenericDAO<Envio> {
         WHERE id = ? AND eliminado = FALSE
         """;
 
+      private static final String SELECT_BY_ID_SQL_UPDATE = """
+        SELECT
+            *
+        FROM
+            envio 
+        WHERE id = ? 
+        """;
     /**
-     * Query para obtener todos los envios activos.
-     * Filtra por eliminado=FALSE (solo envios activos).
-     * SELECT * es aceptable aquí porque Envio tiene solo 4 columnas.
+     * Query para obtener todos los envíos activos.
+     * Filtra por eliminado=FALSE (solo envíos activos).
      */
     private static final String SELECT_ALL_SQL = """
         SELECT
@@ -123,11 +140,10 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * 5. Obtiene el ID autogenerado y lo asigna a envio.id
      * 6. Cierra recursos automáticamente (try-with-resources)
      *
-     * IMPORTANTE: El ID generado se asigna al objeto envio.
-     * Esto permite que PedidoServiceImpl.insertar() use envio.getId()
-     * inmediatamente después de insertar.
+     * IMPORTANTE: El ID generado se asigna al objeto envío.
+     * Esto permite asociarlo inmediatamente a un Pedido si corresponde.
      *
-     * @param envio Envio a insertar (id será ignorado y regenerado)
+     * @param envio Envío a insertar (id será ignorado y regenerado)
      * @throws SQLException Si falla la inserción o no se obtiene ID generado
      */
     @Override
@@ -141,7 +157,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Inserta un envio dentro de una transacción existente.
+     * Inserta un envío dentro de una transacción existente.
      * NO crea nueva conexión, recibe una Connection externa.
      * NO cierra la conexión (responsabilidad del caller con TransactionManager).
      *
@@ -149,7 +165,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * - Operaciones que requieren múltiples inserts coordinados
      * - Rollback automático si alguna operación falla
      *
-     * @param envio Envio a insertar
+     * @param envio Envío a insertar
      * @param conn Conexión transaccional (NO se cierra en este método)
      * @throws Exception Si falla la inserción
      */
@@ -163,64 +179,55 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Actualiza un domicilio existente en la base de datos.
-     * Actualiza calle y número.
+     * Actualiza un envío existente en la base de datos.
+     * Actualiza sus campos principales.
      *
      * Validaciones:
-     * - Si rowsAffected == 0 → El domicilio no existe o ya está eliminado
+     * - Si rowsAffected == 0 → El envío no existe o ya está eliminado
      *
-     * ⚠️ IMPORTANTE: Si varias personas comparten este domicilio,
-     * la actualización los afectará a TODAS (RN-040).
-     * Ejemplo:
-     * - Domicilio ID=1 "Av. Siempreviva 742" tiene 3 personas asociadas
-     * - actualizar(domicilio con calle="Calle Nueva") cambia la dirección de las 3 personas
+     * Nota: Si existieran varios pedidos vinculados a este envío,
+     * la actualización los afectará a todos.
      *
-     * Esto es CORRECTO: permite que familias compartan la misma dirección
-     * y se actualice en un solo lugar.
-     *
-     * @param envio Domicilio con los datos actualizados (id debe ser > 0)
-     * @throws SQLException Si el domicilio no existe o hay error de BD
+     * @param envio Envío con los datos actualizados (id debe ser > 0)
+     * @throws SQLException Si el envío no existe o hay error de BD
      */
     @Override
     public void actualizar(Envio envio) throws SQLException {
         try (Connection conn = DatabaseConnection.getConnection();
              PreparedStatement stmt = conn.prepareStatement(UPDATE_SQL)) {
             setearParametrosEnvio(stmt, envio);
-            stmt.setInt(8, envio.getId());
+            stmt.setInt(7, envio.getId());
 
             int rowsAffected = stmt.executeUpdate();
             if (rowsAffected == 0) {
-                throw new SQLException("No se pudo actualizar el envio con ID: " + envio.getId());
+                throw new SQLException("No se pudo actualizar el envío con ID: " + envio.getId());
             }
         }
     }
 
     /**
-     * Elimina lógicamente un envio (soft delete).
+     * Elimina lógicamente un envío (soft delete).
      * Marca eliminado=TRUE sin borrar físicamente la fila.
      *
      * Validaciones:
-     * - Si rowsAffected == 0 → El envio no existe o ya está eliminado
+     * - Si rowsAffected == 0 → El envío no existe o ya está eliminado
      *
      * ⚠️ PELIGRO: Este método NO verifica si hay pedidos asociados (RN-029).
-     * Si hay pedidos con pedido.envio_id apuntando a este envio,
-     * quedarán con FK huérfana (apuntando a un envio eliminado).
+     * Si hay pedidos con envío asociado a este registro,
+     * quedarán con referencia a un envío marcado como eliminado.
      *
      * Esto puede causar:
-     * - Datos inconsistentes (pedido asociado a envio "eliminado")
-     * - Errores en LEFT JOINs que esperan envios activos
+     * - Datos inconsistentes (pedido asociado a envío "eliminado")
      *
-     * ALTERNATIVA SEGURA: PedidoServiceImpl.eliminarEnvioDePedido()
-     * - Primero actualiza pedido.envio_id = NULL
-     * - Luego elimina el envio
-     * - Garantiza que no queden FKs huérfanas
+     * Alternativa recomendada: gestionar la desasociación del envío desde el servicio de pedidos
+     * antes de eliminarlo para evitar referencias inconsistentes.
      *
      * Este método se mantiene para casos donde:
-     * - Se está seguro de que el envio NO tiene pedidos asociados
-     * - Se quiere eliminar envios en lote (administración)
+     * - Se está seguro de que el envío NO tiene pedidos asociados
+     * - Se quiere eliminar envíos en lote (administración)
      *
-     * @param id ID del envio a eliminar
-     * @throws SQLException Si el envio no existe o hay error de BD
+     * @param id ID del envío a eliminar
+     * @throws SQLException Si el envío no existe o hay error de BD
      */
     @Override
     public void eliminar(int id) throws SQLException {
@@ -231,25 +238,42 @@ public class EnvioDAO implements GenericDAO<Envio> {
             int rowsAffected = stmt.executeUpdate();
 
             if (rowsAffected == 0) {
-                throw new SQLException("No se encontró envio con ID: " + id);
+                throw new SQLException("No se encontró envío con ID: " + id);
             }
         }
     }
 
+    @Override
+    public void restaurar(int id) throws Exception {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(UPDATE_SQL_ELIMINADO)) {
+
+            stmt.setInt(1, id);
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                throw new SQLException("No se encontró envio con ID: " + id);
+            }
+        }}
+
     /**
-     * Obtiene un envio por su ID.
-     * Solo retorna envios activos (eliminado=FALSE).
+     * Obtiene un envío por su ID.
+     * Solo retorna envíos activos (eliminado=FALSE).
      *
-     * @param id ID del envio a buscar
-     * @return Envio encontrado, o null si no existe o está eliminado
+     * @param id ID del envío a buscar
+     * @return Envío encontrado, o null si no existe o está eliminado
      * @throws SQLException Si hay error de BD
      */
     @Override
     public Envio getById(int id) throws SQLException {
-        try (Connection conn = DatabaseConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_ID_SQL)) {
+        return getEnvio(id, SELECT_BY_ID_SQL);
+    }
 
-            stmt.setInt(1, id);
+    private Envio getEnvio(int idEnvio, String selectByIdSql) throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(selectByIdSql)) {
+
+            stmt.setInt(1, idEnvio);
 
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
@@ -260,15 +284,18 @@ public class EnvioDAO implements GenericDAO<Envio> {
         return null;
     }
 
+    public Envio getByIdUpdate(int id) throws SQLException {
+        return getEnvio(id, SELECT_BY_ID_SQL_UPDATE);
+    }
     /**
-     * Obtiene todos los envios activos (eliminado=FALSE).
+     * Obtiene todos los envíos activos (eliminado=FALSE).
      *
      * Nota: Usa Statement (no PreparedStatement) porque no hay parámetros.
      *
      * Uso típico:
-     * - MenuHandler opción 7: Listar envios existentes para asignar a pedido
+     * - MenuHandler opción 6: Listar envíos existentes
      *
-     * @return Lista de envios activos (puede estar vacía)
+     * @return Lista de envíos activos (puede estar vacía)
      * @throws SQLException Si hay error de BD
      */
     @Override
@@ -288,7 +315,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
     }
 
     /**
-     * Setea los parámetros de envio en un PreparedStatement.
+     * Setea los parámetros del envío en un PreparedStatement.
      * Método auxiliar usado por insertar() e insertTx().
      * <p>
      * Parámetros seteados:
@@ -307,17 +334,12 @@ public class EnvioDAO implements GenericDAO<Envio> {
      */
     private void setearParametrosEnvio(PreparedStatement stmt, Envio envio) throws SQLException {
         stmt.setString(1, envio.getTracking());
-        stmt.setDouble(2, envio.getCosto());
-        stmt.setDate(3, java.sql.Date.valueOf(envio.getFechaDespacho()));
-        stmt.setDate(4, java.sql.Date.valueOf(envio.getFechaEstimada()));
-        stmt.setString(5, envio.getTipo().toString());
-        stmt.setString(6, envio.getEmpresa().toString());
-        stmt.setString(7, envio.getEstado().toString());
-        if (envio.getPedidoId() > 0) {
-            stmt.setInt(8, envio.getPedidoId());
-        } else {
-            stmt.setNull(8, Types.INTEGER);
-        }
+        stmt.setDouble(5, envio.getCosto());
+        stmt.setDate(6, java.sql.Date.valueOf(envio.getFechaDespacho()));
+        stmt.setString(3, envio.getTipo().toString());
+        stmt.setString(2, envio.getEmpresa().toString());
+        stmt.setString(4, envio.getEstado().toString());
+
 
     }
 
@@ -326,10 +348,8 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * Asigna el ID generado al objeto envio.
      *
      * IMPORTANTE: Este método es crítico para mantener la consistencia:
-     * - Después de insertar, el objeto envio debe tener su ID real de la BD
-     * - PedidoServiceImpl.insertar() depende de esto para setear la FK:
-     *   1. envioService.insertar(envio) → envio.id se setea aquí
-     *   2. pedidoDAO.insertar(pedido) → usa pedido.getEnvio().getId() para la FK
+     * - Después de insertar, el objeto envío debe tener su ID real de la BD
+     * - Permite usar envio.getId() inmediatamente después de insertar
      * - Necesario para operaciones transaccionales que requieren el ID generado
      *
      * @param stmt PreparedStatement que ejecutó el INSERT con RETURN_GENERATED_KEYS
@@ -372,4 +392,6 @@ public class EnvioDAO implements GenericDAO<Envio> {
             null
         );
     }
+
+
 }

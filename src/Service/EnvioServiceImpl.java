@@ -10,7 +10,7 @@ import Models.Envio;
  *
  * Responsabilidades:
  * - Validar que los datos del envio sean correctos ANTES de persistir
- * - Aplicar reglas de negocio (RN-023: tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId obligatorios)
+ * - Aplicar reglas de negocio (tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId obligatorios)
  * - Delegar operaciones de BD al DAO
  * - Transformar excepciones técnicas en errores de negocio comprensibles
  *
@@ -22,7 +22,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
      * Inyectado en el constructor (Dependency Injection).
      * Usa GenericDAO para permitir testing con mocks.
      */
-    private final GenericDAO<Envio> domicilioDAO;
+    private final GenericDAO<Envio> envioDAO;
 
     /**
      * Constructor con inyección de dependencias.
@@ -31,11 +31,11 @@ public class EnvioServiceImpl implements GenericService<Envio> {
      * @param envioDAO DAO de envio (normalmente EnvioDAO)
      * @throws IllegalArgumentException si envioDAO es null
      */
-    public EnvioServiceImpl(GenericDAO<Envio> domicilioDAO) {
-        if (domicilioDAO == null) {
+    public EnvioServiceImpl(GenericDAO<Envio> envioDAO) {
+        if (envioDAO == null) {
             throw new IllegalArgumentException("EnvioDAO no puede ser null");
         }
-        this.domicilioDAO = domicilioDAO;
+        this.envioDAO = envioDAO;
     }
 
     /**
@@ -52,7 +52,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     @Override
     public void insertar(Envio envio) throws Exception {
         validateEnvio(envio);
-        domicilioDAO.insertar(envio);
+        envioDAO.insertar(envio);
     }
 
     /**
@@ -74,18 +74,19 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         if (envio.getId() <= 0) {
             throw new IllegalArgumentException("El ID del envio debe ser mayor a 0 para actualizar");
         }
-        domicilioDAO.actualizar(envio);
+        envioDAO.actualizar(envio);
     }
+
 
     /**
      * Elimina lógicamente un envio (soft delete).
      * Marca el envio como eliminado=TRUE sin borrarlo físicamente.
      *
-     * ⚠️ ADVERTENCIA: Este método NO verifica si hay pedidos asociados.
-     * Puede dejar referencias huérfanas en pedido.envio_id (RN-029).
+     * Advertencia: Este método NO verifica si hay pedidos asociados.
+     * Puede dejar referencias a envíos marcados como eliminados en pedidos.
      *
-     * ALTERNATIVA SEGURA: Usar PedidoServiceImpl.eliminarEnvioDePedido()
-     * que actualiza la FK antes de eliminar (opción 10 del menú).
+     * Alternativa sugerida: desasociar el envío desde el servicio de pedidos
+     * antes de eliminarlo para evitar referencias inconsistentes.
      *
      * @param id ID del envio a eliminar
      * @throws Exception Si id <= 0 o no existe el envio
@@ -95,9 +96,15 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
         }
-        domicilioDAO.eliminar(id);
+        envioDAO.eliminar(id);
     }
 
+    public void restaurar(int id) throws Exception {
+        if (id <= 0) {
+            throw new IllegalArgumentException("El ID debe ser mayor a 0");
+        }
+        envioDAO.restaurar(id);
+    }
     /**
      * Obtiene un envio por su ID.
      *
@@ -110,9 +117,16 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
         }
-        return domicilioDAO.getById(id);
+        return envioDAO.getById(id);
     }
 
+
+    public Envio getByIdUpdate(int id) throws Exception {
+        if (id <= 0) {
+            throw new IllegalArgumentException("El ID debe ser mayor a 0");
+        }
+        return envioDAO.getByIdUpdate(id);
+    }
     /**
      * Obtiene todos los envios activos (eliminado=FALSE).
      *
@@ -121,7 +135,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
      */
     @Override
     public List<Envio> getAll() throws Exception {
-        return domicilioDAO.getAll();
+        return envioDAO.getAll();
     }
 
     /**

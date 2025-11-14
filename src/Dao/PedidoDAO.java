@@ -10,11 +10,11 @@ import Models.Envio;
 import java.time.LocalDate;
 
 /**
- * Data Access Object para la entidad Envio.
- * Gestiona todas las operaciones de persistencia de envio en la base de datos.
+ * Data Access Object para la entidad Pedido.
+ * Gestiona todas las operaciones de persistencia de pedidos en la base de datos.
  *
  * Características:
- * - Implementa GenericDAO<Envio> para operaciones CRUD estándar
+ * - Implementa GenericDAO<Pedido> para operaciones CRUD estándar
  * - Usa PreparedStatements en TODAS las consultas (protección contra SQL injection)
  * - Maneja LEFT JOIN con envios para cargar la relación de forma eager
  * - Implementa soft delete (eliminado=TRUE, no DELETE físico)
@@ -106,9 +106,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             e.fechaEstimada,
             e.fechaDespacho,
             e.estado as estado_envio
-            FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id AND e.eliminado = TRUE
+            FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id 
             WHERE p.id = ? AND p.eliminado = FALSE;
         """;
+
+
 
     /**
      * Query para obtener todas los pedidos activos.
@@ -314,15 +316,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
                     if (rs.getBoolean("eliminado") == true) {
                         System.out.println("El pedido ya ha sido eliminado anteriormente");
                     } else {
-                        int rowsAffected = stmt.executeUpdate();
-
-                        if (rowsAffected == 0) {
-                            throw new SQLException("No se encontró pedido con ID: " + id);
-                        }
-                        else{
-                            System.out.println("Pedido eliminado exitosamente.");
-                        }
+                        stmt.executeUpdate();
                     }
+                }
+                else{
+                    System.out.println(("No se encontró pedido con ID: " + id));
                 }
             } catch (SQLException e) {
                 throw new Exception("Error al eliminar pedido: " + e.getMessage(), e);
@@ -350,10 +348,11 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             try (ResultSet rs = stmt.executeQuery()) {
                 if (rs.next()) {
                     return mapResultSetToPedido(rs);
+
                 }
             }
         } catch (SQLException e) {
-            throw new Exception("Error al obtener énvio por ID: " + e.getMessage(), e);
+            throw new Exception("Error al obtener pedido por ID: " + e.getMessage(), e);
         }
         return null;
     }
@@ -423,21 +422,21 @@ public class PedidoDAO implements GenericDAO<Pedido> {
     }
 
     /**
-     * Busca un pedido por ID exacto.
-     * Usa comparación exacta (=) porque el ID es único en el sistema (RN-001).
+     * Busca un pedido por número exacto.
+     * Usa comparación exacta (=) porque el número de pedido es único (RN-001).
      *
      * Uso típico:
-     * - PedidoServiceImpl.validateIdUnique() para verificar que el ID no esté duplicado
-     * - MenuHandler opción 4 para buscar pedido específico por ID
+     * - Validar unicidad del número de pedido (PedidosServiceImpl.validateNumeroUnique)
+     * - Buscar un pedido específico desde el menú
      *
-     * @param numeroPedido ID exacto a buscar (se aplica trim automáticamente)
-     * @return Pedido con ese ID, o null si no existe o está eliminada
-     * @throws IllegalArgumentException Si el ID está vacío
+     * @param numeroPedido Número de pedido exacto a buscar (se aplica trim automáticamente)
+     * @return Pedido con ese número, o null si no existe o está eliminado
+     * @throws IllegalArgumentException Si el número de pedido está vacío
      * @throws SQLException Si hay error de BD
      */
     public Pedido buscarPorNumeroDePedido(String numeroPedido) throws SQLException {
         if (numeroPedido == null || numeroPedido.trim().isEmpty()) {
-            throw new IllegalArgumentException("El Número de envío no puede estar vacío");
+            throw new IllegalArgumentException("El número de pedido no puede estar vacío");
         }
 
         try (Connection conn = DatabaseConnection.getConnection();
@@ -455,7 +454,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
     }
 
     /**
-     * Setea los parámetros de pedido en un PreparedStatement.
+     * Setea los parámetros del pedido en un PreparedStatement.
      * Método auxiliar usado por insertar() e insertTx().
      *
      * Parámetros seteados:
@@ -560,7 +559,7 @@ public class PedidoDAO implements GenericDAO<Pedido> {
         int envioId = rs.getInt("envio_id");
         Envio envio = null;
         if (envioId > 0 && !rs.wasNull()) {
-            envio = this.envioDAO.getById(envioId);
+            envio = envioDAO.getById(envioId);
         }
         Pedido.Estado estado = Pedido.Estado.valueOf(rs.getString("estado"));
         Date fecha = rs.getDate("fecha");
@@ -579,4 +578,13 @@ public class PedidoDAO implements GenericDAO<Pedido> {
 
         return pedido;
     }
+
+    @Override
+    public Pedido getByIdUpdate(int id) throws Exception {
+        return null;
+    }
+
+    @Override
+    public void restaurar(int id) throws Exception {
+        }
 }

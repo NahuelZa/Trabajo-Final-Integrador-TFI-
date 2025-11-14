@@ -1,8 +1,11 @@
 package Config;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 
 /**
  * Clase utilitaria para gestionar conexiones a la base de datos MySQL.
@@ -23,13 +26,13 @@ import java.sql.SQLException;
 public final class DatabaseConnection {
     private static final String  PATH_PROPERTIES = "db.properties";
     /** URL de conexión JDBC. Configurable via -Ddb.url */
-    private static final String URL = System.getProperty("db.url", "jdbc:mysql://localhost:3306/pedidosenvios");
+    private static final String DEFAULT_URL = "jdbc:mysql://localhost:3306/pedidosenvios";
 
     /** Usuario de la base de datos. Configurable via -Ddb.user */
-    private static final String USER = System.getProperty("db.user", "root");
+    private static final String DEFAULT_USER = "root";
 
     /** Contraseña del usuario. Configurable via -Ddb.password */
-    private static final String PASSWORD = System.getProperty("db.password", "");
+    private static final String DEFAULT_PASSWORD =  "";
 
     /**
      * Bloque de inicialización estática.
@@ -83,7 +86,17 @@ public final class DatabaseConnection {
      * @throws SQLException Si no se puede establecer la conexión
      */
     public static Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(URL, USER, PASSWORD);
+        Properties props = new Properties();
+        try (FileInputStream fis = new FileInputStream(PATH_PROPERTIES)) {
+            props.load(fis);
+        } catch (IOException e) {
+           // Fallamos silenciosamente, si no existe el archivo se utilizan valores por default
+        }
+
+        String url = props.getProperty("url",  DEFAULT_URL);
+        String user = props.getProperty("user",DEFAULT_USER);
+        String password = props.getProperty("password" ,DEFAULT_PASSWORD);
+        return DriverManager.getConnection(url, user, password);
     }
 
     /**
@@ -98,15 +111,15 @@ public final class DatabaseConnection {
      * @throws IllegalStateException Si la configuración es inválida
      */
     private static void validateConfiguration() {
-        if (URL == null || URL.trim().isEmpty()) {
+        if (DEFAULT_URL == null || DEFAULT_URL.trim().isEmpty()) {
             throw new IllegalStateException("La URL de la base de datos no está configurada");
         }
-        if (USER == null || USER.trim().isEmpty()) {
+        if (DEFAULT_USER == null || DEFAULT_USER.trim().isEmpty()) {
             throw new IllegalStateException("El usuario de la base de datos no está configurado");
         }
         // PASSWORD puede ser vacío (común en MySQL local con usuario root sin contraseña)
         // Solo validamos que no sea null
-        if (PASSWORD == null) {
+        if (DEFAULT_PASSWORD == null) {
             throw new IllegalStateException("La contraseña de la base de datos no está configurada");
         }
     }

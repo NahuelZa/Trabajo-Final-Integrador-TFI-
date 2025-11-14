@@ -17,7 +17,8 @@ import java.util.Objects;
  * Campos:
  * - id: INT AUTO_INCREMENT PRIMARY KEY (heredado de Base)
  * - numero: VARCHAR(20) NOT NULL
- * - cliente_nombre: VARCHAR(120) NOT NULL
+ * - fecha: DATE NOT NULL
+ * - clienteNombre: VARCHAR(120) NOT NULL
  * - total: DECIMAL(12, 2) NOT NULL
  * - estado ENUM('NUEVO', 'FACTURADO', 'ENVIADO')
  * - eliminado: BOOLEAN DEFAULT FALSE (heredado de Base)
@@ -36,8 +37,8 @@ public class Pedido extends Base {
     private String clienteNombre;
 
     /**
-     * ID del pedido. Requerido, no puede ser null ni vacío.
-     * ÚNICO en el sistema (validado en BD y en PedidoServiceImpl.validateIdUnique()).
+     * Total del pedido. Requerido, no puede ser null.
+     * Validado en PedidosServiceImpl para que no sea menor a cero.
      */
     private Double total;
     /**
@@ -129,6 +130,14 @@ public class Pedido extends Base {
         return this.fecha;
     }
 
+     public boolean isEliminado(){
+        return super.isEliminado();
+    }
+
+    public void setEliminado(boolean eliminado){
+        super.setEliminado(eliminado);
+    }
+
     @Override
     public String toString() {
         return "Pedido{" +
@@ -144,9 +153,9 @@ public class Pedido extends Base {
     }
 
     /**
-     * Compara dos pedidos por numero (identificador único).
-     * Dos pedidos son iguales si tienen el mismo ID.
-     * Correcto porque ID es único en el sistema.
+     * Compara dos pedidos por número (identificador único).
+     * Dos pedidos son iguales si tienen el mismo número.
+     * Correcto porque el número de pedido es único en el sistema.
      */
     @Override
     public boolean equals(Object o) {

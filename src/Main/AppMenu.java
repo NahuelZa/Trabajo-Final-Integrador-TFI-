@@ -63,7 +63,7 @@ public class AppMenu {
      */
     public AppMenu() {
         this.scanner = new Scanner(System.in);
-        this.menuHandler = new MenuHandler(scanner, createPersonaService(), createEnviosService());
+        this.menuHandler = new MenuHandler(scanner, createPedidosService(), createEnviosService());
         this.running = true;
     }
 
@@ -137,16 +137,16 @@ public class AppMenu {
      * - Permite bloques con {} para múltiples statements
      *
      * Mapeo de opciones (corresponde a MenuDisplay):
-     * 1  → Crear pedido (con envio opcional)
-     * 2  → Listar pedidos (todas o filtradas)
+     * 1  → Crear pedido
+     * 2  → Listar pedidos
      * 3  → Actualizar pedido
      * 4  → Eliminar pedido (soft delete)
-     * 5  → Crear envio independiente
-     * 6  → Listar envio
-     * 7  → Actualizar envio por ID (afecta a todos los pedidos que lo comparten)
-     * 8  → Eliminar envio por ID (PELIGROSO - puede dejar FKs huérfanas)
-     * 9  → Actualizar envio de un pedido (afecta a todos los pedidos que lo comparten)
-     * 10 → Eliminar envio de un pedido (SEGURO - actualiza FK primero)
+     * 5  → Crear envío
+     * 6  → Listar envíos
+     * 7  → Actualizar envío por ID
+     * 8  → Eliminar envío por ID
+     * 9  → Actualizar envío por ID de pedido
+     * 10 → Eliminar envío por ID de pedido
      * 0  → Salir (setea running=false para terminar el loop)
      *
      * Opción inválida: Muestra mensaje y continúa el loop.
@@ -165,7 +165,7 @@ public class AppMenu {
             case 5 -> menuHandler.crearEnvio();
             case 6 -> menuHandler.listarEnvios();
             case 7 -> menuHandler.actualizarEnvioPorId();
-            case 8 -> menuHandler.eliminarDomicilioPorId();
+            case 8 -> menuHandler.eliminarEnvioPorId();
             case 9 -> menuHandler.actualizarEnvioPorPedido();
             case 10 -> menuHandler.eliminarEnvioDePedido();
             case 0 -> {
@@ -178,7 +178,7 @@ public class AppMenu {
 
     /**
      * Factory method que crea la cadena de dependencias de servicios.
-     * Implementa inyección de dependencias manual.
+     * Implementa inyección de dependencias manual para el dominio Pedido/Envio.
      *
      * Orden de creación (bottom-up desde la capa más baja):
      * 1. EnvioDAO: Sin dependencias, acceso directo a BD
@@ -196,22 +196,22 @@ public class AppMenu {
      * Models (Pedido, Envio, Base)
      *
      * ¿Por qué PedidoDAO necesita EnvioDAO?
-     * - Actualmente NO lo usa (inyección preparada para futuras operaciones)
-     * - Podría usarse para operaciones transaccionales coordinadas
+     * - Para mapear correctamente la relación Pedido → Envío cuando existe
+     * - Preparado para operaciones coordinadas entre ambas entidades
      *
-     * ¿Por qué PedidoService necesita EnvioService?
+     * ¿Por qué PedidosService necesita EnvioService?
      * - Para insertar/actualizar envios al crear/actualizar pedidos
-     * - Para eliminar envios de forma segura (eliminarEnvioDePedido)
+     * - Para eliminar envíos de forma segura (eliminarEnvioDePedido)
      *
      * Patrón: Factory Method para construcción de dependencias
      *
-     * @return PedidoServiceImpl completamente inicializado con todas sus dependencias
+     * @return PedidosServiceImpl completamente inicializado con todas sus dependencias
      */
-    private PedidosServiceImpl createPersonaService() {
+    private PedidosServiceImpl createPedidosService() {
         EnvioDAO envioDAO = new EnvioDAO();
         PedidoDAO pedidoDAO = new PedidoDAO(envioDAO);
-        EnvioServiceImpl domicilioService = new EnvioServiceImpl(envioDAO);
-        return new PedidosServiceImpl(pedidoDAO, domicilioService);
+        EnvioServiceImpl enviosService = new EnvioServiceImpl(envioDAO);
+        return new PedidosServiceImpl(pedidoDAO, enviosService);
     }
 
 
