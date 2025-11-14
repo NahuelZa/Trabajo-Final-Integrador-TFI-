@@ -460,7 +460,7 @@ public class MenuHandler {
         }
     }
 
-    public void actualizarEnvioPorPedido() throws Exception {
+    public void actualizarEnvioPorPedido() {
         try {
             System.out.print("ID de el pedido cuyo envio desea actualizar: ");
             Pedido p = obtenerPedidoDesdeScanner();
