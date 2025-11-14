@@ -117,7 +117,13 @@ public class Envio extends Base {
     public Empresa getEmpresa() {
         return empresa;
     }
-
+    public boolean isEliminado(){
+        return super.isEliminado();
+    }
+    
+    public void setEliminado(boolean eliminado){
+        super.setEliminado(eliminado);
+    }
     /**
      * Establece la empresa de envío.
      *

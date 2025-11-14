@@ -109,7 +109,9 @@ public class PedidoDAO implements GenericDAO<Pedido> {
             FROM pedido p LEFT JOIN envio e ON e.pedidoId = p.id 
             WHERE p.id = ? AND p.eliminado = FALSE;
         """;
-
+    
+    
+   
     /**
      * Query para obtener todos los pedidos activos.
      * LEFT JOIN con envíos para cargar relaciones.
@@ -554,4 +556,13 @@ public class PedidoDAO implements GenericDAO<Pedido> {
 
         return pedido;
     }
+
+    @Override
+    public Pedido getByIdUpdate(int id) throws Exception {
+        return null;
+    }
+
+    @Override
+    public void restaurar(int id) throws Exception {
+        }
 }

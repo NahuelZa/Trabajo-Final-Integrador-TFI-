@@ -69,6 +69,15 @@ public class EnvioDAO implements GenericDAO<Envio> {
                                                                                      
         WHERE id = ?
     """;
+     
+     private static final String UPDATE_SQL_ELIMINADO = """
+        UPDATE
+            envio
+        SET
+           eliminado = FALSE                                 
+                                                                                     
+        WHERE id = ?
+    """;
        
       /**
               **/
@@ -99,7 +108,14 @@ public class EnvioDAO implements GenericDAO<Envio> {
             envio 
         WHERE id = ? AND eliminado = FALSE
         """;
-
+    
+      private static final String SELECT_BY_ID_SQL_UPDATE = """
+        SELECT
+            *
+        FROM
+            envio 
+        WHERE id = ? 
+        """;
     /**
      * Query para obtener todos los envíos activos.
      * Filtra por eliminado=FALSE (solo envíos activos).
@@ -226,7 +242,20 @@ public class EnvioDAO implements GenericDAO<Envio> {
             }
         }
     }
+    
+    @Override
+    public void restaurar(int id) throws Exception {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(UPDATE_SQL_ELIMINADO)) {
 
+            stmt.setInt(1, id);
+            int rowsAffected = stmt.executeUpdate();
+
+            if (rowsAffected == 0) {
+                throw new SQLException("No se encontró domicilio con ID: " + id);
+            }
+        }}
+    
     /**
      * Obtiene un envío por su ID.
      * Solo retorna envíos activos (eliminado=FALSE).
@@ -250,7 +279,21 @@ public class EnvioDAO implements GenericDAO<Envio> {
         }
         return null;
     }
+    
+    public Envio getByIdUpdate(int id) throws SQLException {
+        try (Connection conn = DatabaseConnection.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(SELECT_BY_ID_SQL_UPDATE)) {
 
+            stmt.setInt(1, id);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    return mapResultSetToEnvio(rs);
+                }
+            }
+        }
+        return null;
+    }
     /**
      * Obtiene todos los envíos activos (eliminado=FALSE).
      *
@@ -354,4 +397,6 @@ public class EnvioDAO implements GenericDAO<Envio> {
             null
         );
     }
+
+    
 }

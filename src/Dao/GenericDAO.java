@@ -11,7 +11,9 @@ public interface GenericDAO<T> {
     void insertTx(T entidad, Connection conn) throws Exception;
     void actualizar(T entidad)throws Exception;
     void eliminar(int id)throws Exception;
+    void restaurar(int id)throws Exception;
     T getById(int id)throws Exception;
+    T getByIdUpdate(int id)throws Exception;
     List<T> getAll()throws Exception;
 
 }

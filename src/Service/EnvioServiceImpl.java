@@ -76,6 +76,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         }
         envioDAO.actualizar(envio);
     }
+ 
 
     /**
      * Elimina lógicamente un envío (soft delete).
@@ -97,7 +98,13 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         }
         envioDAO.eliminar(id);
     }
-
+    
+    public void restaurar(int id) throws Exception {
+        if (id <= 0) {
+            throw new IllegalArgumentException("El ID debe ser mayor a 0");
+        }
+        envioDAO.restaurar(id);
+    }
     /**
      * Obtiene un envío por su ID.
      *
@@ -112,7 +119,14 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         }
         return envioDAO.getById(id);
     }
-
+    
+    
+    public Envio getByIdUpdate(int id) throws Exception {
+        if (id <= 0) {
+            throw new IllegalArgumentException("El ID debe ser mayor a 0");
+        }
+        return envioDAO.getByIdUpdate(id);
+    }
     /**
      * Obtiene todos los envíos activos (eliminado=FALSE).
      *

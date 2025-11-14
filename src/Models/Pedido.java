@@ -129,6 +129,14 @@ public class Pedido extends Base {
     public LocalDate getFecha() {
         return this.fecha;
     }
+    
+     public boolean isEliminado(){
+        return super.isEliminado();
+    }
+    
+    public void setEliminado(boolean eliminado){
+        super.setEliminado(eliminado);
+    }
 
     @Override
     public String toString() {
