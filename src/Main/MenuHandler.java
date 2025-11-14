@@ -302,7 +302,7 @@ public class MenuHandler {
             if (envio == null) {
                 System.out.println("Envio no encontrado.");
                 return;
-            }else if(envio.isEliminado()==true){
+            }else if(envio.isEliminado()){
                 System.out.println("El nevio" +envio+ "\nFigura como eliminado quiere reinsertar el mismo envio con los mismod datos? (s/n)");
                 String subopcion=scanner.nextLine().trim();
                 if (subopcion.equalsIgnoreCase("s")){
@@ -361,7 +361,7 @@ public class MenuHandler {
         String inputCosto = scanner.nextLine().trim();
         if (!inputCosto.isEmpty()) {
             boolean valido = true;
-            while (valido == true) {
+            while (valido) {
                 try {
                     double costo = Double.parseDouble(inputCosto);
 
@@ -467,7 +467,7 @@ public class MenuHandler {
                 return;
             }
 
-            if (envio.isEliminado() == true) {
+            if (envio.isEliminado() ) {
                 System.out.println("El nevio" + envio + "\nFigura como eliminado quiere reinsertar el mismo envio con los mismos datos? (s/n)");
                 String subopcion = scanner.nextLine().trim();
                 if (subopcion.equalsIgnoreCase("s")) {
