@@ -5,12 +5,12 @@ import Dao.GenericDAO;
 import Models.Envio;
 
 /**
- * Implementación del servicio de negocio para la entidad Envío.
+ * Implementación del servicio de negocio para la entidad Envio.
  * Capa intermedia entre la UI y el DAO que aplica validaciones de negocio.
  *
  * Responsabilidades:
- * - Validar que los datos del envío sean correctos ANTES de persistir
- * - Aplicar reglas de negocio (por ejemplo: tracking obligatorio)
+ * - Validar que los datos del envio sean correctos ANTES de persistir
+ * - Aplicar reglas de negocio (tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId obligatorios)
  * - Delegar operaciones de BD al DAO
  * - Transformar excepciones técnicas en errores de negocio comprensibles
  *
@@ -18,7 +18,7 @@ import Models.Envio;
  */
 public class EnvioServiceImpl implements GenericService<Envio> {
     /**
-     * DAO para acceso a datos de envíos.
+     * DAO para acceso a datos de envio.
      * Inyectado en el constructor (Dependency Injection).
      * Usa GenericDAO para permitir testing con mocks.
      */
@@ -28,7 +28,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
      * Constructor con inyección de dependencias.
      * Valida que el DAO no sea null (fail-fast).
      *
-     * @param envioDAO DAO de envíos
+     * @param envioDAO DAO de envio (normalmente EnvioDAO)
      * @throws IllegalArgumentException si envioDAO es null
      */
     public EnvioServiceImpl(GenericDAO<Envio> envioDAO) {
@@ -39,14 +39,14 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     }
 
     /**
-     * Inserta un nuevo envío en la base de datos.
+     * Inserta un nuevo envio en la base de datos.
      *
      * Flujo:
-     * 1. Valida que el tracking no esté vacío
+     * 1. Valida que tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId no estén vacíos
      * 2. Delega al DAO para insertar
-     * 3. El DAO asigna el ID autogenerado al objeto envío
+     * 3. El DAO asigna el ID autogenerado al objeto envio
      *
-     * @param envio Envío a insertar (id será ignorado y regenerado)
+     * @param envio Envio a insertar (id será ignorado y regenerado)
      * @throws Exception Si la validación falla o hay error de BD
      */
     @Override
@@ -56,17 +56,17 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     }
 
     /**
-     * Actualiza un envío existente en la base de datos.
+     * Actualiza un envio existente en la base de datos.
      *
      * Validaciones:
-     * - El envío debe tener datos válidos (tracking)
-     * - El ID debe ser > 0 (debe ser un envío ya persistido)
+     * - El envio debe tener datos válidos (tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId)
+     * - El ID debe ser > 0 (debe ser un envio ya persistido)
      *
-     * IMPORTANTE: Si varios pedidos compartieran este envío,
-     * la actualización los afectaría a TODOS (RN-040).
+     * IMPORTANTE: Si varios pedidos comparten este envio,
+     * la actualización los afectará a TODOS (RN-040).
      *
-     * @param envio Envío con los datos actualizados
-     * @throws Exception Si la validación falla o el envío no existe
+     * @param envio Envio con los datos actualizados
+     * @throws Exception Si la validación falla o el envio no existe
      */
     @Override
     public void actualizar(Envio envio) throws Exception {
@@ -76,11 +76,11 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         }
         envioDAO.actualizar(envio);
     }
- 
+
 
     /**
-     * Elimina lógicamente un envío (soft delete).
-     * Marca el envío como eliminado=TRUE sin borrarlo físicamente.
+     * Elimina lógicamente un envio (soft delete).
+     * Marca el envio como eliminado=TRUE sin borrarlo físicamente.
      *
      * Advertencia: Este método NO verifica si hay pedidos asociados.
      * Puede dejar referencias a envíos marcados como eliminados en pedidos.
@@ -88,8 +88,8 @@ public class EnvioServiceImpl implements GenericService<Envio> {
      * Alternativa sugerida: desasociar el envío desde el servicio de pedidos
      * antes de eliminarlo para evitar referencias inconsistentes.
      *
-     * @param id ID del envío a eliminar
-     * @throws Exception Si id <= 0 o no existe el envío
+     * @param id ID del envio a eliminar
+     * @throws Exception Si id <= 0 o no existe el envio
      */
     @Override
     public void eliminar(int id) throws Exception {
@@ -98,7 +98,7 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         }
         envioDAO.eliminar(id);
     }
-    
+
     public void restaurar(int id) throws Exception {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
@@ -106,10 +106,10 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         envioDAO.restaurar(id);
     }
     /**
-     * Obtiene un envío por su ID.
+     * Obtiene un envio por su ID.
      *
-     * @param id ID del envío a buscar
-     * @return Envío encontrado, o null si no existe o está eliminado
+     * @param id ID del envio a buscar
+     * @return Envio encontrado, o null si no existe o está eliminado
      * @throws Exception Si id <= 0 o hay error de BD
      */
     @Override
@@ -119,8 +119,8 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         }
         return envioDAO.getById(id);
     }
-    
-    
+
+
     public Envio getByIdUpdate(int id) throws Exception {
         if (id <= 0) {
             throw new IllegalArgumentException("El ID debe ser mayor a 0");
@@ -128,9 +128,9 @@ public class EnvioServiceImpl implements GenericService<Envio> {
         return envioDAO.getByIdUpdate(id);
     }
     /**
-     * Obtiene todos los envíos activos (eliminado=FALSE).
+     * Obtiene todos los envios activos (eliminado=FALSE).
      *
-     * @return Lista de envíos activos (puede estar vacía)
+     * @return Lista de envios activos (puede estar vacía)
      * @throws Exception Si hay error de BD
      */
     @Override
@@ -139,13 +139,13 @@ public class EnvioServiceImpl implements GenericService<Envio> {
     }
 
     /**
-     * Valida que un envío tenga datos correctos.
+     * Valida que un envio tenga datos correctos.
      *
-     * Reglas de negocio aplicadas (simplificadas):
-     * - Tracking obligatorio (no vacío)
-     * - Se verifica trim() para evitar strings solo con espacios
+     * Reglas de negocio aplicadas:
+     * - RN-023: tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId son obligatorios
+     * - RN-024: Se verifica trim() para evitar strings solo con espacios
      *
-     * @param envio Envío a validar
+     * @param envio Envio a validar
      * @throws IllegalArgumentException Si alguna validación falla
      */
     private void validateEnvio(Envio envio) {

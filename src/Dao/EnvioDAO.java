@@ -27,8 +27,8 @@ import java.time.LocalDate;
  */
 public class EnvioDAO implements GenericDAO<Envio> {
     /**
-     * Query de inserción de envío.
-     * Inserta tracking, empresa, tipo, estado, costo, fechas y FK pedidoId.
+     * Query de inserción de envio.
+     * Inserta tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado y pedidoId.
      * El id es AUTO_INCREMENT y se obtiene con RETURN_GENERATED_KEYS.
      * El campo eliminado tiene DEFAULT FALSE en la BD.
      */
@@ -48,14 +48,14 @@ public class EnvioDAO implements GenericDAO<Envio> {
         """;
 
     /**
-     * Query de actualización de envío.
-     * Actualiza los campos principales por id (tracking, empresa, tipo, estado, costo, fechas).
+     * Query de actualización de Envio.
+     * Actualiza tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa y estado por id.
      * NO actualiza el flag eliminado (solo se modifica en soft delete).
      *
      * Nota: si hubiera varios pedidos vinculados a un mismo envío, la actualización impactará a todos.
      */
-    
-    
+
+
      private static final String UPDATE_SQL = """
         UPDATE
             envio
@@ -69,7 +69,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
                                                                                      
         WHERE id = ?
     """;
-     
+
      private static final String UPDATE_SQL_ELIMINADO = """
         UPDATE
             envio
@@ -78,10 +78,10 @@ public class EnvioDAO implements GenericDAO<Envio> {
                                                                                      
         WHERE id = ?
     """;
-       
+
       /**
               **/
-    
+
     /**
      * Query de soft delete.
      * Marca eliminado=TRUE sin borrar físicamente la fila.
@@ -108,7 +108,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
             envio 
         WHERE id = ? AND eliminado = FALSE
         """;
-    
+
       private static final String SELECT_BY_ID_SQL_UPDATE = """
         SELECT
             *
@@ -129,13 +129,13 @@ public class EnvioDAO implements GenericDAO<Envio> {
         """;
 
     /**
-     * Inserta un envío en la base de datos (versión sin transacción).
+     * Inserta un envio en la base de datos (versión sin transacción).
      * Crea su propia conexión y la cierra automáticamente.
      *
      * Flujo:
      * 1. Abre conexión con DatabaseConnection.getConnection()
      * 2. Crea PreparedStatement con INSERT_SQL y RETURN_GENERATED_KEYS
-     * 3. Setea parámetros del envío (tracking, empresa, tipo, estado, costo, fechas)
+     * 3. Setea parámetros (tracking, costo, fechaDespacho, fechaEstimada, tipo, empresa, estado)
      * 4. Ejecuta INSERT
      * 5. Obtiene el ID autogenerado y lo asigna a envio.id
      * 6. Cierra recursos automáticamente (try-with-resources)
@@ -242,7 +242,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
             }
         }
     }
-    
+
     @Override
     public void restaurar(int id) throws Exception {
         try (Connection conn = DatabaseConnection.getConnection();
@@ -252,10 +252,10 @@ public class EnvioDAO implements GenericDAO<Envio> {
             int rowsAffected = stmt.executeUpdate();
 
             if (rowsAffected == 0) {
-                throw new SQLException("No se encontró domicilio con ID: " + id);
+                throw new SQLException("No se encontró envio con ID: " + id);
             }
         }}
-    
+
     /**
      * Obtiene un envío por su ID.
      * Solo retorna envíos activos (eliminado=FALSE).
@@ -317,33 +317,35 @@ public class EnvioDAO implements GenericDAO<Envio> {
     /**
      * Setea los parámetros del envío en un PreparedStatement.
      * Método auxiliar usado por insertar() e insertTx().
-     *
-     * Parámetros seteados (en orden):
-     * 1. tracking (String)
-     * 2. empresa (String - enum name)
-     * 3. tipo (String - enum name)
-     * 4. estado (String - enum name)
-     * 5. costo (Double)
-     * 6. fechaDespacho (Date)
+     * <p>
+     * Parámetros seteados:
+     * 1. Tracking (String)
+     * 2. Costo (Double)
+     * 3. FechaDespacho (Date)
+     * 4. FechaEstimada (Date)
+     * 5. Tipo (String)
+     * 6. Empresa (String)
+     * 7. Estado (String)
+     * 8. PedidoId (Int)
      *
      * @param stmt  PreparedStatement con INSERT_SQL
-     * @param envio Envío con los datos a insertar
+     * @param envio Envio con los datos a insertar
      * @throws SQLException Si hay error al setear parámetros
      */
     private void setearParametrosEnvio(PreparedStatement stmt, Envio envio) throws SQLException {
         stmt.setString(1, envio.getTracking());
         stmt.setDouble(5, envio.getCosto());
-        stmt.setDate(6, java.sql.Date.valueOf(envio.getFechaDespacho()));        
+        stmt.setDate(6, java.sql.Date.valueOf(envio.getFechaDespacho()));
         stmt.setString(3, envio.getTipo().toString());
         stmt.setString(2, envio.getEmpresa().toString());
         stmt.setString(4, envio.getEstado().toString());
-       
+
 
     }
 
     /**
      * Obtiene el ID autogenerado por la BD después de un INSERT.
-     * Asigna el ID generado al objeto envío.
+     * Asigna el ID generado al objeto envio.
      *
      * IMPORTANTE: Este método es crítico para mantener la consistencia:
      * - Después de insertar, el objeto envío debe tener su ID real de la BD
@@ -351,7 +353,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
      * - Necesario para operaciones transaccionales que requieren el ID generado
      *
      * @param stmt PreparedStatement que ejecutó el INSERT con RETURN_GENERATED_KEYS
-     * @param envio Objeto envío a actualizar con el ID generado
+     * @param envio Objeto envio a actualizar con el ID generado
      * @throws SQLException Si no se pudo obtener el ID generado (indica problema grave)
      */
     private void setGeneratedId(PreparedStatement stmt, Envio envio) throws SQLException {
@@ -359,7 +361,7 @@ public class EnvioDAO implements GenericDAO<Envio> {
             if (generatedKeys.next()) {
                 envio.setId(generatedKeys.getInt(1));
             } else {
-                throw new SQLException("La inserción del envío falló, no se obtuvo ID generado");
+                throw new SQLException("La inserción del envio falló, no se obtuvo ID generado");
             }
         }
     }
@@ -391,5 +393,5 @@ public class EnvioDAO implements GenericDAO<Envio> {
         );
     }
 
-    
+
 }

@@ -16,9 +16,9 @@ import java.time.LocalDate;
  * Responsabilidades:
  * - Capturar entrada del usuario desde consola (Scanner)
  * - Validar entrada básica (conversión de tipos, valores vacíos)
- * - Invocar servicios de negocio (PedidosService, EnvioService)
+ * - Invocar servicios de negocio (PedidoService, EnvioService)
  * - Mostrar resultados y mensajes de error al usuario
- * - Coordinar operaciones complejas (crear pedido con envío, etc.)
+ * - Coordinar operaciones complejas (crear pedido con envio, etc.)
  *
  * Patrón: Controller (MVC) - capa de presentación en arquitectura de 4 capas
  * Arquitectura: Main → Service → DAO → Models
@@ -34,7 +34,7 @@ public class MenuHandler {
     private final Scanner scanner;
 
     /**
-     * Servicio de pedidos para operaciones CRUD.
+     * Servicio de pedido para operaciones CRUD.
      * También proporciona acceso a EnvioService mediante getEnvioService().
      */
     private final PedidosServiceImpl pedidosService;
@@ -62,7 +62,7 @@ public class MenuHandler {
     }
 
     /**
-     * Opción 1: Crear nuevo pedido (con envío opcional).
+     * Opción 1: Crear nuevo pedido (con envio opcional).
      *
      * Flujo:
      * 1. Solicita número de pedido, fecha, nombre del cliente y total
@@ -110,15 +110,16 @@ public class MenuHandler {
      * Opción 2: Listar pedidos (todos o filtrados por nombre de cliente).
      *
      * Submenú:
-     * 1. Listar todos los pedidos activos (getAll)
-     * 2. Buscar por nombre de cliente con LIKE
+     * 1. Listar todos los pedidos actios (getAll)
+     * 2. Buscar por nombre o apellido con LIKE (buscarPorclienteNombre)
      *
      * Muestra:
-     * - ID, Número, Nombre de Cliente, Total
-     * - Envío (si tiene): Empresa y Tracking
+     * - ID, Nombre, Apellido
+     * - Envio (si tiene): id
      *
      * Manejo de casos especiales:
      * - Si no hay pedidos: Muestra "No se encontraron pedidos"
+     * - Si el pedido no tiene envio: Solo muestra datos del pedido
      *
      * Búsqueda por nombre de cliente:
      * - Usa PedidoDAO.buscarPorNombreCliente() que hace LIKE '%filtro%'
@@ -164,7 +165,7 @@ public class MenuHandler {
      *
      * Flujo:
      * 1. Solicita ID del pedido
-     * 2. Obtiene el pedido actual de la BD
+     * 2. Obtiene pedido actual de la BD
      * 3. Muestra valores actuales y permite actualizar:
      *    - Número de pedido (Enter para mantener actual)
      *    - Nombre del cliente (Enter para mantener actual)
@@ -230,9 +231,9 @@ public class MenuHandler {
      *
      * Flujo:
      * 1. Solicita ID del pedido
-     * 2. Invoca pedidosService.eliminar() que:
+     * 2. Invoca pedidoService.eliminar() que:
      *    - Marca pedido.eliminado = TRUE
-     *    - NO elimina el envío asociado automáticamente
+     *    - NO elimina el envio asociado (RN-037)
      *
      * Nota: El envío no se elimina automáticamente para evitar inconsistencias.
      * Si también desea eliminar el envío asociado de forma segura:
@@ -250,7 +251,7 @@ public class MenuHandler {
     }
 
     /**
-     * Opción 6: Listar todos los envíos activos.
+     * Opción 6: Listar todos los envios activos.
      *
      * Muestra: ID, Empresa, Tracking, Tipo, Estado y Costo
      *
@@ -401,14 +402,15 @@ public class MenuHandler {
 
 
     /**
-     * Opción 8: Eliminar envío por ID (PELIGROSO si está asociado a un pedido).
+     * Opción 8: Eliminar envio por ID (PELIGROSO - soft delete directo).
      *
      * Advertencia: Este método elimina el envío por su ID sin verificar si está asociado a un pedido.
      * Si hay un pedido referenciando este envío, podría dejar datos inconsistentes.
      *
      * Flujo:
-     * 1. Solicita ID del envío
-     * 2. Invoca envioService.eliminar() directamente (soft delete)
+     * 1. Solicita ID del envio
+     * 2. Invoca envioService.eliminar() directamente
+     * 3. Marca envio.eliminado = TRUE
      *
      * Alternativa segura: Opción 10 (eliminarEnvioDePedido)
      * - Primero desasocia el envío del pedido
@@ -431,13 +433,13 @@ public class MenuHandler {
     }
 
     /**
-     * Opción 9: Actualizar envío por ID de pedido.
+     * Opción 7: Actualizar envio de un pedido específico.
      *
      * Flujo:
      * 1. Solicita ID del pedido
-     * 2. Verifica que el pedido exista y tenga envío asociado
-     * 3. Muestra valores actuales del envío
-     * 4. Permite actualizar campos del envío (empresa, tracking, tipo, estado, costo, fecha)
+     * 2. Verifica que el pedido exista y tenga envio
+     * 3. Muestra valores actuales del envio
+     * 4. Permite actualizar calle y número
      * 5. Invoca envioService.actualizar()
      *
      * Nota: Esta opción toma el envío desde el pedido para asegurar que se actualice el correcto.
@@ -491,23 +493,23 @@ public class MenuHandler {
         }
     }
 
-            
+
     /**
-     * Opción 10: Eliminar envío por ID de pedido (MÉTODO SEGURO).
+     * Opción 10: Eliminar envio de un pedido (MÉTODO SEGURO - RN-029 solucionado).
      *
      * Flujo transaccional SEGURO:
      * 1. Solicita ID del pedido
-     * 2. Verifica que el pedido exista y tenga envío
-     * 3. Invoca pedidosService.eliminarEnvioDePedido() que:
-     *    a. Desasocia el envío del pedido (pedido.envio = null)
-     *    b. Actualiza pedido en BD (quita la relación)
-     *    c. Elimina el envío (ya sin referencias)
+     * 2. Verifica que el pedido exista y tenga envio
+     * 3. Invoca pedidoService.eliminarEnvioDePedido() que:
+     *    a. Desasocia envio de pedido (pedido.envio = null)
+     *    b. Actualiza pedido en BD (envio_id = NULL)
+     *    c. Elimina el envio (ahora no hay FKs apuntando a él)
      *
      * Ventaja sobre opción 8 (eliminarEnvioPorId):
      * - Garantiza consistencia: Primero actualiza la FK, luego elimina
      * - Evita referencias huérfanas
      *
-     * Este es el método RECOMENDADO para eliminar envíos cuando están asociados a un pedido.
+     * Este es el método RECOMENDADO para eliminar envios en producción.
      */
     public void eliminarEnvioDePedido() {
         try {
@@ -541,8 +543,8 @@ public class MenuHandler {
      * - Valida que la fecha estimada no sea anterior a la fecha de despacho
      * - Devuelve null (inserción realizada por el servicio); el pedido puede consultarse luego para obtener el envío
      */
-   
-    
+
+
 
     public Envio crearEnvio(Pedido pedido) {
         try {
@@ -589,7 +591,7 @@ public class MenuHandler {
         }
         return null;
     }
-    
+
      public void crearEnvio() {
         try {
             System.out.print("ID del pedido a asignar Envio: ");

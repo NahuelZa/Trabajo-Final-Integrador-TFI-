@@ -74,10 +74,10 @@ public class Envio extends Base {
 
 
     /**
-     * Constructor completo para reconstruir un Envío desde la base de datos.
-     * Usado por DAOs al mapear ResultSet.
+     * Constructor completo para reconstruir un Envio desde la base de datos.
+     * Usado por PedidoDAO y EnvioDAO al mapear ResultSet.
      *
-     * @param id            ID del envío en la BD
+     * @param id            ID del envio en la BD
      * @param eliminado     El registro se encuentra eliminado o no
      * @param tracking      Tracking Number del envío
      * @param empresa       Nombre de la empresa
@@ -120,7 +120,7 @@ public class Envio extends Base {
     public boolean isEliminado(){
         return super.isEliminado();
     }
-    
+
     public void setEliminado(boolean eliminado){
         super.setEliminado(eliminado);
     }

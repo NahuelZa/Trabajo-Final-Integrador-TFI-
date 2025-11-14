@@ -1,3 +1,6 @@
 out
 .idea
+/nbproject/private/
+/build/
+
 db.properties

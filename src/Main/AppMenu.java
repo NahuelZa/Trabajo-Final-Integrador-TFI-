@@ -48,16 +48,16 @@ public class AppMenu {
      *
      * Flujo de inicialización:
      * 1. Crea Scanner único para toda la aplicación
-     * 2. Crea cadena de dependencias (DAOs → Services)
-     * 3. Crea MenuHandler con Scanner, PedidosService y EnvioService
+     * 2. Crea cadena de dependencias (DAOs → Services) mediante createPedidoService()
+     * 3. Crea MenuHandler con Scanner y PedidoService
      * 4. Setea running=true para iniciar el loop
      *
      * Patrón de inyección de dependencias (DI) manual:
      * - EnvioDAO (sin dependencias)
-     * - PedidoDAO (depende de EnvioDAO para reconstruir relación Envío)
+     * - PedidoDAO (depende de EnvioDAO)
      * - EnvioServiceImpl (depende de EnvioDAO)
-     * - PedidosServiceImpl (depende de PedidoDAO y EnvioServiceImpl)
-     * - MenuHandler (depende de Scanner, PedidosServiceImpl y EnvioServiceImpl)
+     * - PedidoServiceImpl (depende de PedidoDAO y EnvioServiceImpl)
+     * - MenuHandler (depende de Scanner y PedidoServiceImpl)
      *
      * Esta inicialización garantiza que todas las dependencias estén correctamente conectadas.
      */
@@ -182,14 +182,14 @@ public class AppMenu {
      *
      * Orden de creación (bottom-up desde la capa más baja):
      * 1. EnvioDAO: Sin dependencias, acceso directo a BD
-     * 2. PedidoDAO: Depende de EnvioDAO (para reconstruir relación Envío vía LEFT JOIN)
+     * 2. PedidoDAO: Depende de EnvioDAO (inyectado en constructor)
      * 3. EnvioServiceImpl: Depende de EnvioDAO
-     * 4. PedidosServiceImpl: Depende de PedidoDAO y EnvioServiceImpl
+     * 4. PedidoServiceImpl: Depende de PedidoDAO y EnvioServiceImpl
      *
      * Arquitectura resultante (4 capas):
      * Main (AppMenu, MenuHandler)
      *   ↓
-     * Service (PedidosServiceImpl, EnvioServiceImpl)
+     * Service (PedidoServiceImpl, EnvioServiceImpl)
      *   ↓
      * DAO (PedidoDAO, EnvioDAO)
      *   ↓
@@ -200,7 +200,7 @@ public class AppMenu {
      * - Preparado para operaciones coordinadas entre ambas entidades
      *
      * ¿Por qué PedidosService necesita EnvioService?
-     * - Para insertar/actualizar envíos al crear/actualizar pedidos
+     * - Para insertar/actualizar envios al crear/actualizar pedidos
      * - Para eliminar envíos de forma segura (eliminarEnvioDePedido)
      *
      * Patrón: Factory Method para construcción de dependencias
