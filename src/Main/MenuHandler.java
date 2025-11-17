@@ -316,7 +316,7 @@ public class MenuHandler {
 
     public void actualizarEnvioPorId(Envio envio) {
 
-        System.out.print("Nueva empresa (actual: " + envio.getEmpresa() + "): ");
+        System.out.println("Nueva empresa (actual: " + envio.getEmpresa() + "): ");
         Envio.Empresa empresa = obtenerEmpresaDesdeScanner();
         envio.setEmpresa(empresa);
         System.out.print("Nuevo tacking (actual: " + envio.getTracking() + ", Enter para mantener): ");
@@ -327,10 +327,10 @@ public class MenuHandler {
             envio.setTracking(envio.getTracking());
         }
 
-        System.out.print("Nuevo Tipo (actual: " + envio.getTipo() + "): ");
+        System.out.println("Nuevo Tipo (actual: " + envio.getTipo() + "): ");
         Envio.Tipo tipo = obtenerTipoDesdeScanner();
         envio.setTipo(tipo);
-        System.out.print("Nuevo Estado (actual: " + envio.getEstado() + "): ");
+        System.out.println("Nuevo Estado (actual: " + envio.getEstado() + "): ");
         Envio.Estado estado = obtenerEstadoDesdeScanner();
         envio.setEstado(estado);
         System.out.print("Nuevo costo (actual: " + envio.getCosto() + "): ");
