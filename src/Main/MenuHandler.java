@@ -660,9 +660,8 @@ public class MenuHandler {
         } else {
             System.out.print("El pedido no tiene envío. ¿Desea agregar uno? (s/n): ");
             if (scanner.nextLine().equalsIgnoreCase("s")) {
-                Envio nuevoDom = crearEnvio(p);
-                pedidosService.getEnvioService().insertar(nuevoDom);
-                p.setEnvio(nuevoDom);
+                Envio nuevoEnvío = crearEnvio(p);
+                p.setEnvio(nuevoEnvío);
             }
         }
     }
