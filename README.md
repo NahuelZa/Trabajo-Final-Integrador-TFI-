@@ -133,6 +133,7 @@ El desarrollo de este sistema permite aplicar y consolidar los siguientes concep
 - Implementación de AutoCloseable en TransactionManager
 - Manejo apropiado de excepciones con propagación controlada
 - Validación multi-nivel: base de datos y aplicación
+- Validación de unicidad (número de pedido único y tracking de envío único)
 
 **5. Patrones de Diseño**
 - Factory Pattern (DatabaseConnection)
@@ -142,7 +143,7 @@ El desarrollo de este sistema permite aplicar y consolidar los siguientes concep
 - Dependency Injection manual
 
 **6. Validación de Integridad de Datos**
-- Validación de unicidad (DNI único por persona)
+- Validación de unicidad: número de pedido y tracking de envío únicos
 - Validación de campos obligatorios en múltiples niveles
 - Validación de integridad referencial (Foreign Keys)
 - Implementación de eliminación segura para prevenir referencias huérfanas
@@ -209,81 +210,34 @@ Driver: MySQL Connector/J v8.4.0
 10. Eliminar envío por ID de pedido
 0. Salir
 ```
-# TODO: Falta actualziar
 
 ### Operaciones Disponibles
 
-#### 1. Crear Persona
-- Captura nombre, apellido y DNI
-- Permite agregar domicilio opcionalmente
-- Valida DNI único (no permite duplicados)
+Pedidos
+- Crear pedido: número, fecha, nombre de cliente, total y estado (NUEVO/FACTURADO/ENVIADO)
+- Listar pedidos: muestra todos los pedidos activos
+- Actualizar pedido: modifica campos; Enter para mantener valores actuales
+- Eliminar pedido: soft delete (marca como eliminado)
+- Buscar pedido por número
+- Buscar pedidos por nombre de cliente
 
-**Ejemplo:**
+Envíos
+- Crear envío: tracking (único), costo, fechas, tipo, empresa, estado
+- Listar envíos
+- Actualizar envío por ID
+- Eliminar envío por ID
+- Actualizar envío por ID de pedido
+- Eliminar envío por ID de pedido
+
+Ejemplo (creación de pedido):
 ```
-Nombre: Juan
-Apellido: Pérez
-DNI: 12345678
-¿Desea agregar un domicilio? (s/n): s
-Calle: San Martín
-Numero: 123
+Número: 0001
+Fecha (AAAA-MM-DD): 2025-05-10
+Cliente: Ana López
+Total: 1234.50
+Estado [1-NUEVO, 2-FACTURADO, 3-ENVIADO]: 1
+¿Desea crear un envío asociado ahora? (s/n): n
 ```
-
-#### 2. Listar Personas
-Dos opciones:
-- **(1) Listar todos**: Muestra todas las personas activas
-- **(2) Buscar**: Filtra por nombre o apellido
-
-**Ejemplo de búsqueda:**
-```
-Ingrese texto a buscar: Juan
-```
-**Resultado:**
-```
-ID: 1, Nombre: Juan, Apellido: Pérez, DNI: 12345678
-   Domicilio: San Martín 123
-```
-
-#### 3. Actualizar Persona
-- Permite modificar nombre, apellido, DNI
-- Permite actualizar o agregar domicilio
-- Presionar Enter sin escribir mantiene el valor actual
-
-**Ejemplo:**
-```
-ID de la persona a actualizar: 1
-Nuevo nombre (actual: Juan, Enter para mantener):
-Nuevo apellido (actual: Pérez, Enter para mantener): González
-Nuevo DNI (actual: 12345678, Enter para mantener):
-¿Desea actualizar el domicilio? (s/n): n
-```
-
-#### 4. Eliminar Persona
-- Eliminación lógica (marca como eliminado, no borra físicamente)
-- Requiere ID de la persona
-
-#### 5. Crear Domicilio
-- Crea domicilio independiente sin asociarlo a persona
-- Puede asociarse posteriormente
-
-#### 6. Listar Domicilios
-- Muestra todos los domicilios activos con ID, calle y número
-
-#### 7. Actualizar Domicilio por ID
-- Actualiza calle y/o número de cualquier domicilio
-- Requiere ID del domicilio
-
-#### 8. Eliminar Domicilio por ID
-- ⚠️ **ADVERTENCIA**: Puede dejar referencias huérfanas si está asociado a persona
-- Usar opción 10 como alternativa segura
-
-#### 9. Actualizar Domicilio por Persona
-- Actualiza el domicilio asociado a una persona específica
-- Requiere ID de la persona
-
-#### 10. Eliminar Domicilio por Persona (RECOMENDADO)
-- ✅ **Eliminación segura**: Primero actualiza la referencia en persona, luego elimina
-- Previene referencias huérfanas
-- Requiere ID de la persona
 
 ## Arquitectura
 
@@ -293,26 +247,26 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 ┌─────────────────────────────────────┐
 │     Main / UI Layer                 │
 │  (Interacción con usuario)          │
-│  AppMenu, MenuHandler, MenuDisplay  │
+│  AppMenu, MenuHandler              │
 └───────────┬─────────────────────────┘
             │
 ┌───────────▼─────────────────────────┐
 │     Service Layer                   │
 │  (Lógica de negocio y validación)   │
-│  PersonaServiceImpl                 │
-│  DomicilioServiceImpl               │
+│  PedidosServiceImpl                │
+│  EnvioServiceImpl                   │
 └───────────┬─────────────────────────┘
             │
 ┌───────────▼─────────────────────────┐
 │     DAO Layer                       │
 │  (Acceso a datos)                   │
-│  PersonaDAO, DomicilioDAO           │
+│  PedidoDAO, EnvioDAO                │
 └───────────┬─────────────────────────┘
             │
 ┌───────────▼─────────────────────────┐
 │     Models Layer                    │
 │  (Entidades de dominio)             │
-│  Persona, Domicilio, Base           │
+│  Pedido, Envio, Base                │
 └─────────────────────────────────────┘
 ```
 
@@ -324,55 +278,56 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 
 **Models/**
 - `Base.java`: Clase abstracta con campos id y eliminado
-- `Persona.java`: Entidad Persona (nombre, apellido, dni, domicilio)
-- `Domicilio.java`: Entidad Domicilio (calle, numero)
+- `Pedido.java`: Entidad Pedido (numero, fecha, clienteNombre, total, estado, envio)
+- `Envio.java`: Entidad Envio (tracking, costo, fechas, tipo, empresa, estado)
 
 **Dao/**
 - `GenericDAO<T>`: Interface genérica con operaciones CRUD
-- `PersonaDAO`: Implementación con queries LEFT JOIN para incluir domicilio
-- `DomicilioDAO`: Implementación para domicilios
+- `PedidoDAO`: CRUD de pedidos y búsquedas (por número y por cliente)
+- `EnvioDAO`: CRUD de envíos y operaciones vinculadas a pedidos
 
 **Service/**
 - `GenericService<T>`: Interface genérica para servicios
-- `PersonaServiceImpl`: Validaciones de persona y coordinación con domicilios
-- `DomicilioServiceImpl`: Validaciones de domicilio
+- `PedidosServiceImpl`: Reglas de negocio de pedidos (validaciones, búsquedas, coordinación con envíos)
+- `EnvioServiceImpl`: Reglas de negocio de envíos
 
 **Main/**
 - `Main.java`: Punto de entrada
 - `AppMenu.java`: Orquestador del ciclo de menú
 - `MenuHandler.java`: Implementación de operaciones CRUD con captura de entrada
-- `MenuDisplay.java`: Lógica de visualización de menús
 - `TestConexion.java`: Utilidad para verificar conexión a BD
 
 ## Modelo de Datos
 
 ```
-┌────────────────────┐          ┌──────────────────┐
-│     personas       │          │   domicilios     │
-├────────────────────┤          ├──────────────────┤
-│ id (PK)            │          │ id (PK)          │
-│ nombre             │          │ calle            │
-│ apellido           │          │ numero           │
-│ dni (UNIQUE)       │          │ eliminado        │
-│ domicilio_id (FK)  │──────┐   └──────────────────┘
-│ eliminado          │      │
-└────────────────────┘      │
-                            │
-                            └──▶ Relación 0..1
+┌──────────────────┐          ┌──────────────────┐
+│     pedido       │◀─────────│      envio       │
+├──────────────────┤          ├──────────────────┤
+│ id (PK)          │          │ id (PK)          │
+│ numero (UNIQUE)  │          │ tracking (UNIQUE)│
+│ fecha            │          │ costo            │
+│ clienteNombre    │          │ fechaDespacho    │
+│ total            │          │ fechaEstimada    │
+│ estado           │          │ tipo             │
+│ eliminado        │          │ empresa          │
+│                  │          │ estado           │
+│                  │          │ pedidoId (FK)    │
+└──────────────────┘          └──────────────────┘
 ```
 
+Relación: 1 Pedido puede tener 0 o 1 Envío. La FK está en `envio.pedidoId`.
+
 **Reglas:**
-- Una persona puede tener 0 o 1 domicilio
-- DNI es único (constraint en base de datos y validación en aplicación)
-- Eliminación lógica: campo `eliminado = TRUE`
-- Foreign key `domicilio_id` puede ser NULL
+- Número de pedido único; tracking de envío único
+- Eliminación lógica: campo `eliminado = TRUE` en ambas tablas
+- Integridad referencial: `envio.pedidoId` referencia `pedido.id` con ON UPDATE CASCADE
 
 ## Patrones y Buenas Prácticas
 
 ### Seguridad
 - **100% PreparedStatements**: Prevención de SQL injection
 - **Validación multi-capa**: Service layer valida antes de persistir
-- **DNI único**: Constraint en BD + validación en `PersonaServiceImpl.validateDniUnique()`
+- Unicidad: Constraint en BD + validación en servicios (`PedidosServiceImpl` para número de pedido, `EnvioServiceImpl` para tracking)
 
 ### Gestión de Recursos
 - **Try-with-resources**: Todas las conexiones, statements y resultsets
@@ -392,38 +347,41 @@ Nuevo DNI (actual: 12345678, Enter para mantener):
 
 ## Reglas de Negocio Principales
 
-1. **DNI único**: No se permiten personas con DNI duplicado
-2. **Campos obligatorios**: Nombre, apellido y DNI son requeridos para persona
-3. **Validación antes de persistir**: Service layer valida antes de llamar a DAO
-4. **Eliminación segura de domicilio**: Usar opción 10 (por persona) en lugar de opción 8 (por ID)
-5. **Preservación de valores**: En actualización, campos vacíos mantienen valor original
-6. **Búsqueda flexible**: LIKE con % permite coincidencias parciales
-7. **Transacciones**: Operaciones complejas soportan rollback
+1. Número de pedido único; tracking de envío único
+2. Campos obligatorios:
+   - Pedido: numero, fecha, clienteNombre, total, estado
+   - Envío: tracking, costo, fechas, tipo, empresa, estado
+3. Validación antes de persistir: la capa Service valida antes de llamar al DAO
+4. Eliminación segura de envío asociado: usar opción 10 (por pedido) en lugar de 8 (por ID) cuando corresponda
+5. Preservación de valores: en actualización, Enter mantiene el valor original del campo
+6. Búsqueda flexible: por número de pedido y por nombre de cliente usando LIKE con %
+7. Transacciones: operaciones compuestas con commit/rollback
 
 ## Estructura de Directorios
 
 ```
-TPI-Prog2-fusion-final/
-├── src/main/java/
+Trabajo-Final-Integrador-TFI/
+├── src/
 │   ├── Config/          # Configuración de BD y transacciones
-│   ├── Dao/             # Capa de acceso a datos
-│   ├── Main/            # UI y punto de entrada
+│   ├── Dao/             # Acceso a datos (JDBC/DAO)
+│   ├── Main/            # UI por consola y punto de entrada
 │   ├── Models/          # Entidades de dominio
 │   └── Service/         # Lógica de negocio
-├── build.gradle         # Configuración de Gradle
-├── gradlew              # Gradle wrapper (Unix)
-├── gradlew.bat          # Gradle wrapper (Windows)
-├── README.md            # Este archivo
-├── CLAUDE.md            # Documentación técnica
-└── HISTORIAS_DE_USUARIO.md  # Especificaciones funcionales
+├── SQL BBD/Script.sql   # Script de creación de BD y tablas
+├── db.properties        # Parámetros de conexión a la BD
+├── build.xml            # Script de construcción (Ant/NetBeans)
+├── nbproject/           # Archivos de proyecto NetBeans
+├── manifest.mf          # Manifest para empaquetado
+├── out/                 # Clases compiladas (salida del IDE)
+└── README.md            # Este archivo
 ```
 
 ## Convenciones de Código
 
 - **Idioma**: Español (nombres de clases, métodos, variables)
 - **Nomenclatura**:
-  - Clases: PascalCase (Ej: `PersonaServiceImpl`)
-  - Métodos: camelCase (Ej: `buscarPorDni`)
+  - Clases: PascalCase (Ej: `PedidosServiceImpl`)
+  - Métodos: camelCase (Ej: `buscarPorNumero`)
   - Constantes SQL: UPPER_SNAKE_CASE (Ej: `SELECT_BY_ID_SQL`)
 - **Indentación**: 4 espacios
 - **Recursos**: Siempre usar try-with-resources
@@ -457,7 +415,7 @@ Este proyecto demuestra competencia en los siguientes criterios académicos:
 
 **✅ Validaciones e Integridad (15%)**
 - Validación de campos obligatorios en múltiples niveles
-- Validación de unicidad de DNI (base de datos + aplicación)
+- Validación de unicidad (número de pedido y tracking) en base de datos y aplicación
 - Verificación de integridad referencial
 - Prevención de referencias huérfanas mediante eliminación segura
 
@@ -490,14 +448,14 @@ Este proyecto demuestra competencia en los siguientes criterios académicos:
    - Javadoc completo en todos los archivos fuente
 
 3. **Implementaciones Avanzadas**:
-   - Eliminación segura de domicilios (previene FKs huérfanas)
-   - Validación de DNI único en dos niveles (DB + aplicación)
+   - Eliminación segura de envíos asociados (previene FKs huérfanas)
+   - Validación de unicidad en dos niveles (DB + aplicación) para número de pedido y tracking
    - Coordinación transaccional entre servicios
    - Búsqueda flexible con LIKE pattern matching
 
 4. **Buenas Prácticas Aplicadas**:
    - Dependency Injection manual
-   - Separación de concerns (AppMenu, MenuHandler, MenuDisplay)
+   - Separación de concerns (AppMenu, MenuHandler)
    - Factory pattern para conexiones
    - Input sanitization con trim() consistente
    - Fail-fast validation
@@ -506,14 +464,14 @@ Este proyecto demuestra competencia en los siguientes criterios académicos:
 
 | Concepto | Implementación en el Proyecto |
 |----------|-------------------------------|
-| **Herencia** | Clase abstracta `Base` heredada por `Persona` y `Domicilio` |
+| **Herencia** | Clase abstracta `Base` heredada por `Pedido` y `Envio` |
 | **Polimorfismo** | Interfaces `GenericDAO<T>` y `GenericService<T>` |
 | **Encapsulamiento** | Atributos privados con getters/setters en todas las entidades |
 | **Abstracción** | Interfaces que definen contratos sin implementación |
 | **JDBC** | Conexión, PreparedStatements, ResultSets, transacciones |
-| **DAO Pattern** | `PersonaDAO`, `DomicilioDAO` abstraen el acceso a datos |
-| **Service Layer** | Lógica de negocio separada en `PersonaServiceImpl`, `DomicilioServiceImpl` |
+| **DAO Pattern** | `PedidoDAO`, `EnvioDAO` abstraen el acceso a datos |
+| **Service Layer** | Lógica de negocio separada en `PedidosServiceImpl`, `EnvioServiceImpl` |
 | **Exception Handling** | Try-catch en todas las capas, propagación controlada |
 | **Resource Management** | Try-with-resources para AutoCloseable (Connection, Statement, ResultSet) |
-| **Dependency Injection** | Construcción manual de dependencias en `AppMenu.createPersonaService()` |
+| **Dependency Injection** | Construcción manual de dependencias en `AppMenu.createPedidosService()` |
 
