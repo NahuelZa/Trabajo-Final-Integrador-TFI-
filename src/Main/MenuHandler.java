@@ -316,8 +316,7 @@ public class MenuHandler {
 
     public void actualizarEnvioPorId(Envio envio) {
 
-        System.out.println("Nueva empresa (actual: " + envio.getEmpresa() + "): ");
-        Envio.Empresa empresa = obtenerEmpresaDesdeScanner();
+        Envio.Empresa empresa = obtenerEmpresaDesdeScanner(envio.getEmpresa());
         envio.setEmpresa(empresa);
         System.out.print("Nuevo tacking (actual: " + envio.getTracking() + ", Enter para mantener): ");
         String numero = scanner.nextLine().trim();
@@ -327,11 +326,9 @@ public class MenuHandler {
             envio.setTracking(envio.getTracking());
         }
 
-        System.out.println("Nuevo Tipo (actual: " + envio.getTipo() + "): ");
-        Envio.Tipo tipo = obtenerTipoDesdeScanner();
+        Envio.Tipo tipo = obtenerTipoDesdeScanner(envio.getTipo());
         envio.setTipo(tipo);
-        System.out.println("Nuevo Estado (actual: " + envio.getEstado() + "): ");
-        Envio.Estado estado = obtenerEstadoDesdeScanner();
+        Envio.Estado estado = obtenerEstadoDesdeScanner(envio.getEstado());
         envio.setEstado(estado);
         System.out.print("Nuevo costo (actual: " + envio.getCosto() + "): ");
         String inputCosto = scanner.nextLine().trim();
@@ -536,9 +533,9 @@ public class MenuHandler {
         try {
             System.out.print("Tracking: ");
             String tracking = scanner.nextLine().trim();
-            Envio.Empresa empresa = obtenerEmpresaDesdeScanner();
-            Envio.Tipo tipo = obtenerTipoDesdeScanner();
-            Envio.Estado estado = obtenerEstadoDesdeScanner();
+            Envio.Empresa empresa = obtenerEmpresaDesdeScanner(null);
+            Envio.Tipo tipo = obtenerTipoDesdeScanner(null);
+            Envio.Estado estado = obtenerEstadoDesdeScanner(null);
 
             System.out.print("Costo Envio: ");
             Double costo = Double.parseDouble(scanner.nextLine());
@@ -576,30 +573,38 @@ public class MenuHandler {
         return null;
     }
 
-    private Envio.Estado obtenerEstadoDesdeScanner() {
-        System.out.print("Estado Envio (1: EN PREPARACION, 2: EN_TRANSITO, 3: ENTREGADO): ");
+    private Envio.Estado obtenerEstadoDesdeScanner(Envio.Estado estadoActual) {
+        if (estadoActual != null) {
+            System.out.print("Actual: " + estadoActual + " (Enter para mantener). ");
+        }
+        System.out.print("OPCIONES: (1: EN PREPARACION, 2: EN_TRANSITO, 3: ENTREGADO): ");
         Envio.Estado estado = Map.of(
                 "1", Envio.Estado.EN_PREPARACION,
                 "2", Envio.Estado.EN_TRANSITO,
-                "3", Envio.Estado.ENTREGADO).get(scanner.nextLine().trim());
+                "3", Envio.Estado.ENTREGADO).getOrDefault(scanner.nextLine().trim(), estadoActual);
         return estado;
     }
 
-    private Envio.Tipo obtenerTipoDesdeScanner() {
-        System.out.print("Tipo Envio (1: ESTÁNDAR, 2: EXPRESS): ");
-
+    private Envio.Tipo obtenerTipoDesdeScanner(Envio.Tipo tipoActual) {
+        if (tipoActual != null) {
+            System.out.print("Actual: " + tipoActual + " (Enter para mantener). ");
+        }
+        System.out.print("OPCIONES: (1: ESTÁNDAR, 2: EXPRESS): ");
         Envio.Tipo tipo = Map.of(
                 "1", Envio.Tipo.ESTANDAR,
-                "2", Envio.Tipo.EXPRESS).get(scanner.nextLine().trim());
+                "2", Envio.Tipo.EXPRESS).getOrDefault(scanner.nextLine().trim(),  tipoActual);
         return tipo;
     }
 
-    private Envio.Empresa obtenerEmpresaDesdeScanner() {
-        System.out.print("Empresa (1: CORREO ARG, 2: ANDREANI, 3: OCA): ");
+    private Envio.Empresa obtenerEmpresaDesdeScanner(Envio.Empresa empresaActual) {
+        if (empresaActual != null) {
+            System.out.print("Actual: " + empresaActual + " (Enter para mantener). ");
+        }
+        System.out.print("OPCIONES: (1: CORREO ARG, 2: ANDREANI, 3: OCA): ");
         Envio.Empresa empresa =Map.of(
                 "1", Envio.Empresa.CORREO_ARG,
                 "2", Envio.Empresa.ANDREANI,
-                "3", Envio.Empresa.OCA).get(scanner.nextLine().trim());
+                "3", Envio.Empresa.OCA).getOrDefault(scanner.nextLine().trim(), empresaActual);
         return empresa;
     }
 
@@ -643,16 +648,7 @@ public class MenuHandler {
         if (p.getEnvio() != null) {
             System.out.print("¿Desea actualizar el envío? (s/n): ");
             if (scanner.nextLine().equalsIgnoreCase("s")) {
-                System.out.print("Nueva empresa (" + p.getEnvio().getEmpresa() + "): ");
-                Envio.Empresa empresa = obtenerEmpresaDesdeScanner();
-                p.getEnvio().setEmpresa(empresa);
-                System.out.print("Nuevo tracking (" + p.getEnvio().getTracking() + "): ");
-                String tracking = scanner.nextLine().trim();
-                if (!tracking.isEmpty()) {
-                    p.getEnvio().setTracking(tracking);
-                }
-
-                pedidosService.getEnvioService().actualizar(p.getEnvio());
+                actualizarEnvioPorId(p.getEnvio());
             }
         } else {
             System.out.print("El pedido no tiene envío. ¿Desea agregar uno? (s/n): ");
