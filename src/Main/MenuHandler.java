@@ -658,12 +658,8 @@ public class MenuHandler {
             System.out.print("¿Desea actualizar el envío? (s/n): ");
             if (scanner.nextLine().equalsIgnoreCase("s")) {
                 System.out.print("Nueva empresa (" + p.getEnvio().getEmpresa() + "): ");
-                String empresaString = scanner.nextLine().trim();
-                if (!empresaString.isEmpty()) {
-
-                    p.getEnvio().setEmpresa(Envio.Empresa.valueOf(empresaString));
-                }
-
+                Envio.Empresa empresa = obtenerEmpresaDesdeScanner();
+                p.getEnvio().setEmpresa(empresa);
                 System.out.print("Nuevo tracking (" + p.getEnvio().getTracking() + "): ");
                 String tracking = scanner.nextLine().trim();
                 if (!tracking.isEmpty()) {
